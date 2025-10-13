@@ -1,0 +1,245 @@
+{
+  "$schema": "Object Behaviors Configuration",
+  "description": "Defines UI behaviors, available actions, and interaction patterns for each canvas object type",
+  
+  "behaviors": {
+    "text": {
+      "showToolbar": false,
+      "showDragHandle": false,
+      "showColorTag": true,
+      "showMetadataOnSelect": false,
+      "allowDrag": true,
+      "allowRotate": false,
+      "allowResize": false,
+      "actions": []
+    },
+    
+    "shape": {
+      "showToolbar": false,
+      "showDragHandle": false,
+      "showColorTag": true,
+      "showMetadataOnSelect": false,
+      "allowDrag": true,
+      "allowRotate": false,
+      "allowResize": false,
+      "actions": []
+    },
+    
+    "doodle": {
+      "showToolbar": false,
+      "showDragHandle": false,
+      "showColorTag": true,
+      "showMetadataOnSelect": false,
+      "allowDrag": true,
+      "allowRotate": false,
+      "allowResize": false,
+      "actions": []
+    },
+    
+    "sticky": {
+      "showToolbar": false,
+      "showDragHandle": false,
+      "showColorTag": true,
+      "showMetadataOnSelect": false,
+      "allowDrag": true,
+      "allowRotate": false,
+      "allowResize": false,
+      "actions": []
+    },
+    
+    "link": {
+      "showToolbar": false,
+      "showDragHandle": false,
+      "showColorTag": true,
+      "showMetadataOnSelect": false,
+      "allowDrag": true,
+      "allowRotate": false,
+      "allowResize": false,
+      "actions": []
+    },
+    
+    "pdf": {
+      "showToolbar": true,
+      "showDragHandle": false,
+      "showColorTag": true,
+      "showMetadataOnSelect": false,
+      "allowDrag": true,
+      "allowRotate": false,
+      "allowResize": true,
+      "actions": ["download", "tag"]
+    },
+    
+    "image": {
+      "showToolbar": true,
+      "showDragHandle": true,
+      "showColorTag": true,
+      "showMetadataOnSelect": true,
+      "allowDrag": true,
+      "allowRotate": false,
+      "allowResize": true,
+      "actions": ["download", "aiPrompt", "convertToVideo", "tag"]
+    },
+    
+    "video": {
+      "showToolbar": true,
+      "showDragHandle": true,
+      "showColorTag": true,
+      "showMetadataOnSelect": true,
+      "allowDrag": true,
+      "allowRotate": false,
+      "allowResize": true,
+      "actions": ["download", "rerun", "tag"]
+    },
+    
+    "audio": {
+      "showToolbar": true,
+      "showDragHandle": true,
+      "showColorTag": true,
+      "showMetadataOnSelect": true,
+      "allowDrag": true,
+      "allowRotate": false,
+      "allowResize": true,
+      "actions": ["download", "rerun", "tag"]
+    },
+    
+    "document": {
+      "showToolbar": true,
+      "showDragHandle": true,
+      "showColorTag": true,
+      "showMetadataOnSelect": true,
+      "allowDrag": true,
+      "allowRotate": false,
+      "allowResize": true,
+      "actions": ["download", "rerun", "tag"]
+    },
+    
+    "frame": {
+      "showToolbar": true,
+      "showDragHandle": false,
+      "showColorTag": true,
+      "showMetadataOnSelect": true,
+      "allowDrag": true,
+      "allowRotate": false,
+      "allowResize": true,
+      "actions": ["layoutType", "unframe", "autolayout", "download", "more", "tag"]
+    }
+  },
+  
+  "multiSelect": {
+    "showToolbar": true,
+    "showDragHandle": false,
+    "actions": ["frame", "delete", "duplicate", "tag", "aiPrompt"]
+  },
+  
+  "hoverBehaviors": {
+    "delayMs": 300,
+    "gracePeriodMs": 150,
+    "systemResetMs": 500,
+    "minZoomLevel": 0.35,
+    "description": "First hover: 300ms delay. Subsequent hovers: instant. After 500ms outside hover: reset to 300ms delay."
+  },
+  
+  "colorTags": {
+    "enabled": true,
+    "options": ["none", "red", "yellow", "green"],
+    "defaultTag": "none",
+    "alwaysVisible": true,
+    "description": "Color tags cycle through: none → red → yellow → green → none"
+  },
+  
+  "dragBehaviors": {
+    "thresholdPx": 3,
+    "optionKeyToDuplicate": true,
+    "hideDecorationsOnDrag": true,
+    "description": "Drag starts after moving 3px, Option+drag to duplicate"
+  },
+  
+  "actionDefinitions": {
+    "download": {
+      "label": "Download",
+      "icon": "Download",
+      "tooltip": "Download this item",
+      "keyboardShortcut": null
+    },
+    "aiPrompt": {
+      "label": "AI Prompt",
+      "icon": "Sparkles",
+      "tooltip": "Create with AI",
+      "keyboardShortcut": null
+    },
+    "convertToVideo": {
+      "label": "Convert to Video",
+      "icon": "Video",
+      "tooltip": "Convert to video",
+      "keyboardShortcut": null
+    },
+    "rerun": {
+      "label": "Rerun",
+      "icon": "RotateCcw",
+      "tooltip": "Regenerate",
+      "keyboardShortcut": null
+    },
+    "tag": {
+      "label": "Tag",
+      "icon": "Tag",
+      "tooltip": "Cycle color tag",
+      "keyboardShortcut": null
+    },
+    "delete": {
+      "label": "Delete",
+      "icon": "Trash2",
+      "tooltip": "Delete selection",
+      "keyboardShortcut": "Delete/Backspace"
+    },
+    "duplicate": {
+      "label": "Duplicate",
+      "icon": "Copy",
+      "tooltip": "Duplicate selection",
+      "keyboardShortcut": "Option+Drag"
+    },
+    "frame": {
+      "label": "Frame",
+      "icon": "Square",
+      "tooltip": "Create frame from selection",
+      "keyboardShortcut": null
+    },
+    "autolayout": {
+      "label": "Auto Layout",
+      "icon": "LayoutGrid",
+      "tooltip": "Toggle auto layout (flexbox with 10px gap/padding)",
+      "keyboardShortcut": null
+    },
+    "unframe": {
+      "label": "Unframe",
+      "icon": "Maximize2",
+      "tooltip": "Remove frame and release contents",
+      "keyboardShortcut": null
+    },
+    "layoutType": {
+      "label": "Layout Type",
+      "icon": "Rows",
+      "tooltip": "Change layout direction",
+      "keyboardShortcut": null
+    },
+    "more": {
+      "label": "More",
+      "icon": "MoreHorizontal",
+      "tooltip": "More options",
+      "keyboardShortcut": null
+    }
+  },
+  
+  "notes": {
+    "lastUpdated": "2025-01-12",
+    "version": "1.0",
+    "handoffInstructions": [
+      "This file controls all UI behaviors and available actions per object type",
+      "To add a new action: Add to actionDefinitions, then reference in object's actions array",
+      "To hide toolbar/drag handle for a type: Set showToolbar/showDragHandle to false",
+      "Multi-select behaviors are defined separately in the multiSelect section",
+      "Color tags can be customized in the colorTags section",
+      "Hover and drag behaviors can be fine-tuned in their respective sections"
+    ]
+  }
+}
+
