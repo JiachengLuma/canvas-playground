@@ -85,7 +85,7 @@ Controls hover interaction timing:
     "delayMs": 300, // 300ms delay on first hover
     "gracePeriodMs": 150, // 150ms to move cursor to toolbar
     "systemResetMs": 1000, // Reset to slow hover after 1s outside
-    "minZoomLevel": 0.35, // Don't show toolbar below 35% zoom
+    "minZoomLevel": 0.2, // Don't show toolbar below 20% zoom
     "description": "First hover: 300ms delay. Subsequent hovers: instant. After 1s outside hover: reset to 300ms delay."
   }
 }

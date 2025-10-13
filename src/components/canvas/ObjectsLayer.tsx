@@ -99,6 +99,7 @@ export function ObjectsLayer({
           zoomLevel={zoomLevel}
           isActiveToolbar={activeToolbarId === obj.id}
           toolbarSystemActivated={toolbarSystemActivated}
+          isResizing={isResizing}
           selectedIds={selectedIds}
           hoveredBySelectionIds={hoveredBySelectionIds}
           activeToolbarId={activeToolbarId}

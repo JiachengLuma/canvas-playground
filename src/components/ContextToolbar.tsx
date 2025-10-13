@@ -33,6 +33,7 @@ interface ContextToolbarProps {
   onRerun?: () => void;
   onReframe?: () => void; // For frame, this becomes unframe
   onToggleAutolayout?: () => void;
+  onFrameWithAutolayout?: () => void; // For multi-select, create frame with autolayout
   onMore?: () => void;
   onDownload?: () => void;
 }
@@ -50,6 +51,7 @@ export function ContextToolbar({
   onRerun,
   onReframe,
   onToggleAutolayout,
+  onFrameWithAutolayout,
   onMore,
   onDownload,
 }: ContextToolbarProps) {
@@ -179,11 +181,17 @@ export function ContextToolbar({
         {shouldShowCompact && !isPromptMode ? (
           // Compact mode - show "Tab | ..." button without tooltip
           <button
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              if (onZoomToFit) {
+                onZoomToFit();
+              }
+            }}
             onClick={(e) => {
               e.stopPropagation();
-              if (onZoomToFit) onZoomToFit();
             }}
             className="bg-white/95 backdrop-blur-md text-gray-900 rounded-full shadow-lg border border-black/5 hover:bg-gray-50 transition-colors px-3 py-1.5 flex items-center gap-2"
+            style={{ cursor: "pointer" }}
           >
             <span className="text-xs font-medium text-gray-600">Tab</span>
             <div className="w-px h-3 bg-gray-300" />
@@ -380,14 +388,37 @@ export function ContextToolbar({
                     </Tooltip>
                   )}
 
-                  {/* Download */}
-                  {onDownload && (
+                  {/* Auto Layout (Multi-select) */}
+                  {isMultiSelect && onFrameWithAutolayout && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
                           onMouseDown={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
+                            onFrameWithAutolayout();
+                          }}
+                          className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
+                        >
+                          <LayoutGrid
+                            className="w-4 h-4 text-gray-700"
+                            strokeWidth={2}
+                          />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        <p>Autolayout</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {/* Download */}
+                  {onDownload && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             onDownload();
                           }}
                           className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
@@ -409,9 +440,8 @@ export function ContextToolbar({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onMouseDown={(e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            e.preventDefault();
                             onMore();
                           }}
                           className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
@@ -437,6 +467,16 @@ export function ContextToolbar({
                             e.stopPropagation();
                             e.preventDefault();
                             onColorTagChange();
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                          }}
+                          onMouseEnter={(e) => {
+                            e.stopPropagation();
+                          }}
+                          onMouseLeave={(e) => {
+                            e.stopPropagation();
                           }}
                           className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
                         >

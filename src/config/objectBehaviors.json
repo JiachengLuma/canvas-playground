@@ -132,11 +132,12 @@
   },
   
   "hoverBehaviors": {
-    "delayMs": 300,
+    "delayMs": 1000,
     "gracePeriodMs": 150,
-    "systemResetMs": 500,
-    "minZoomLevel": 0.35,
-    "description": "First hover: 300ms delay. Subsequent hovers: instant. After 500ms outside hover: reset to 300ms delay."
+    "systemResetMs": 1000,
+    "minZoomLevel": 0.20,
+    "compactThreshold": 0.6,
+    "description": "First hover: 1000ms (1 second) dwell time. Subsequent hovers: instant once system activated. Grace period: 150ms to move cursor to toolbar. System reset: 1000ms after leaving all hovers. Compact mode: shows 'Tab | ...' button when object < 60% of toolbar width, clicking zooms to fit."
   },
   
   "colorTags": {

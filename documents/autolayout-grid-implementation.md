@@ -189,3 +189,4 @@ Possible improvements:
 - Alignment options (center, space-between, etc.)
 - Variable-sized grid items (masonry layout)
 - Responsive breakpoints for different column counts
+

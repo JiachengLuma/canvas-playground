@@ -5,7 +5,7 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import { ContextToolbar } from "../ContextToolbar";
-import { CanvasObject as CanvasObjectType, ColorTag } from "../../types";
+import { CanvasObject as CanvasObjectType } from "../../types";
 import { shouldShowToolbar } from "../../config/behaviorConfig";
 import { getToolbarGap } from "../../utils/canvasUtils";
 
@@ -43,41 +43,91 @@ function getActualDimensions(
       children.reduce((sum, child) => sum + child.height, 0) +
       gap * (children.length - 1) +
       padding * 2;
+
+    console.log("📐 VStack height calculation:", {
+      children: children.length,
+      childHeights: children.map((c) => c.height),
+      gap,
+      padding,
+      totalHeight,
+      frameY: obj.y,
+    });
+
     return { width: maxWidth, height: totalHeight };
   } else {
-    // grid - calculate actual wrapped dimensions
+    // grid - calculate actual wrapped dimensions using flow simulation
     const frameWidth = obj.width;
-    const maxChildWidth = Math.max(...children.map((child) => child.width));
-    const maxChildHeight = Math.max(...children.map((child) => child.height));
-
-    // Calculate how many items fit per row based on frame width
-    // Account for 1px border on each side (2px total) due to box-sizing: border-box
     const borderWidth = 2;
     const availableWidth = frameWidth - padding * 2 - borderWidth;
-    const itemWidthWithGap = maxChildWidth + gap;
-    const itemsPerRow = Math.max(
-      1,
-      Math.floor((availableWidth + gap) / itemWidthWithGap)
+
+    // Simulate flexWrap: "wrap" behavior - items wrap based on actual widths
+    let currentRowWidth = 0;
+    let currentRowHeight = 0;
+    let totalHeight = 0;
+    let rowCount = 0;
+
+    children.forEach((child, index) => {
+      const childWidth = child.width;
+      const childHeight = child.height;
+
+      // Check if this child fits in the current row
+      const widthNeeded =
+        currentRowWidth === 0
+          ? childWidth // First item in row (no gap before it)
+          : currentRowWidth + gap + childWidth; // Add gap + item width
+
+      if (widthNeeded > availableWidth && currentRowWidth > 0) {
+        // Doesn't fit - finalize current row and start new row
+        if (rowCount > 0) totalHeight += gap; // Add gap between rows
+        totalHeight += currentRowHeight;
+        rowCount++;
+
+        // Start new row with this child
+        currentRowWidth = childWidth;
+        currentRowHeight = childHeight;
+      } else {
+        // Fits in current row - add it
+        currentRowWidth = widthNeeded;
+        currentRowHeight = Math.max(currentRowHeight, childHeight);
+      }
+
+      // If this is the last item, finalize the last row
+      if (index === children.length - 1 && currentRowHeight > 0) {
+        if (rowCount > 0) totalHeight += gap;
+        totalHeight += currentRowHeight;
+        rowCount++;
+      }
+    });
+
+    const calculatedHeight = totalHeight + padding * 2 + borderWidth;
+
+    console.log(
+      "🔷 Grid layout height:",
+      "\n  children:",
+      children.length,
+      "\n  availableWidth:",
+      availableWidth,
+      "\n  rowCount:",
+      rowCount,
+      "\n  totalHeight:",
+      totalHeight,
+      "\n  calculatedHeight:",
+      calculatedHeight,
+      "\n  frameWidth:",
+      frameWidth,
+      "\n  childWidths:",
+      children.map((c) => c.width),
+      "\n  childHeights:",
+      children.map((c) => c.height)
     );
 
-    // Calculate number of rows
-    const numRows = Math.ceil(children.length / itemsPerRow);
-
-    // Calculate total height with all rows
-    const totalHeight =
-      maxChildHeight * numRows +
-      gap * (numRows - 1) +
-      padding * 2 +
-      borderWidth;
-
-    return { width: frameWidth, height: totalHeight };
+    return { width: frameWidth, height: calculatedHeight };
   }
 }
 
 interface SingleObjectToolbarWrapperProps {
   activeObject: CanvasObjectType | null;
   objects: CanvasObjectType[];
-  selectedIds: string[];
   isMultiSelect: boolean;
   isDraggingObject: boolean;
   isResizing: boolean;
@@ -100,7 +150,6 @@ interface SingleObjectToolbarWrapperProps {
 export function SingleObjectToolbarWrapper({
   activeObject,
   objects,
-  selectedIds,
   isMultiSelect,
   isDraggingObject,
   isResizing,
@@ -123,10 +172,8 @@ export function SingleObjectToolbarWrapper({
     return null;
   }
 
-  // Hide toolbar during resize UNLESS it's an autolayout frame (needs to track height changes)
-  const isAutolayoutFrame =
-    activeObject.type === "frame" && (activeObject as any).autoLayout;
-  if (isResizing && !isAutolayoutFrame) {
+  // ALWAYS hide toolbar during resize to prevent interference with resize handles
+  if (isResizing) {
     return null;
   }
 
@@ -139,14 +186,43 @@ export function SingleObjectToolbarWrapper({
     return null;
   }
 
+  // Don't show toolbar during agent frame creation
+  if (activeObject.type === "frame") {
+    const frameObj = activeObject as any;
+    if (frameObj.isAgentCreating) {
+      return null;
+    }
+  }
+
   // Get actual rendered dimensions (important for autolayout frames)
   const { width: actualWidth, height: actualHeight } = getActualDimensions(
     activeObject,
     objects
   );
 
-  // Check if the active object is selected
-  const isSelected = selectedIds.includes(activeObject.id);
+  const toolbarTop =
+    activeObject.y * zoomLevel +
+    panOffset.y +
+    actualHeight * zoomLevel +
+    getToolbarGap(zoomLevel);
+
+  console.log(
+    "🎯 Toolbar positioning:",
+    "\n  objectId:",
+    activeObject.id,
+    "\n  objectY:",
+    activeObject.y,
+    "\n  objectHeight:",
+    activeObject.height,
+    "\n  actualHeight:",
+    actualHeight,
+    "\n  zoomLevel:",
+    zoomLevel,
+    "\n  panOffsetY:",
+    panOffset.y,
+    "\n  calculatedTop:",
+    toolbarTop
+  );
 
   return (
     <AnimatePresence>
@@ -161,22 +237,12 @@ export function SingleObjectToolbarWrapper({
             activeObject.x * zoomLevel +
             panOffset.x +
             (actualWidth * zoomLevel) / 2,
-          top:
-            activeObject.y * zoomLevel +
-            panOffset.y +
-            actualHeight * zoomLevel +
-            getToolbarGap(zoomLevel),
+          top: toolbarTop,
           pointerEvents: "none",
           zIndex: 10000,
         }}
         onMouseEnter={onToolbarHoverEnter}
-        onMouseLeave={() => {
-          // Only hide toolbar on hover leave if the object is NOT selected
-          // Selected objects should keep their toolbar visible
-          if (!isSelected) {
-            onToolbarHoverLeave();
-          }
-        }}
+        onMouseLeave={onToolbarHoverLeave}
       >
         <div
           style={{

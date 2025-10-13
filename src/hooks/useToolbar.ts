@@ -4,9 +4,6 @@
  */
 
 import { useState, useRef } from "react";
-import {
-  TOOLBAR_DEACTIVATION_DELAY_MS,
-} from "../config/constants";
 
 export interface ToolbarState {
   activeToolbarId: string | null;

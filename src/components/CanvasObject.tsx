@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { CanvasObject as CanvasObjectType, ArtifactType } from "../types";
 import { shouldShowMetadata } from "../config/behaviorConfig";
+import { AgentFrameHeader } from "./AgentFrameEffects";
 
 interface CanvasObjectProps {
   object: CanvasObjectType;
@@ -24,6 +25,7 @@ interface CanvasObjectProps {
   zoomLevel: number;
   isActiveToolbar: boolean;
   toolbarSystemActivated: boolean;
+  isResizing?: boolean; // Whether any resize operation is active
   // Additional props for determining child state when rendering autolayout frames
   selectedIds?: string[];
   hoveredBySelectionIds?: string[];
@@ -57,6 +59,7 @@ export function CanvasObject({
   zoomLevel,
   isActiveToolbar,
   toolbarSystemActivated,
+  isResizing,
   selectedIds,
   hoveredBySelectionIds,
   activeToolbarId,
@@ -79,14 +82,49 @@ export function CanvasObject({
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isEditingText, setIsEditingText] = useState(false);
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
   const hasMovedDuringDrag = useRef(false);
   const dragStartPos = useRef({ x: 0, y: 0, altKey: false });
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
 
+  // Listen for Shift key to show proportional scale mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        setIsShiftPressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        setIsShiftPressed(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
+
+    // Disable dragging for objects inside autolayout frames
+    // Autolayout manages positioning, so individual dragging doesn't make sense
+    if (isChildOfAutolayoutFrame) {
+      e.stopPropagation();
+      // Still allow selection
+      if (!isSelected) {
+        onSelect(object.id, e.shiftKey || e.metaKey);
+      }
+      return;
+    }
 
     e.stopPropagation();
 
@@ -214,8 +252,8 @@ export function CanvasObject({
     } else if (isPartOfMultiSelect) {
       // If part of multi-select, don't show individual toolbar
       return;
-    } else if (zoomLevel < 0.35) {
-      // Below 35% zoom, don't show toolbar on hover - only on click/select
+    } else if (zoomLevel < 0.2) {
+      // Below 20% zoom, don't show toolbar on hover - only on click/select
       return;
     } else if (toolbarSystemActivated) {
       // If toolbar system is activated, show immediately (no delay)
@@ -297,6 +335,9 @@ export function CanvasObject({
             alt="Canvas object"
             className="w-full h-full object-cover pointer-events-none select-none"
             draggable={false}
+            style={{
+              pointerEvents: "none",
+            }}
             onError={(e) => {
               console.error("Image failed to load:", object.content);
             }}
@@ -652,9 +693,18 @@ export function CanvasObject({
           <div
             style={{
               backgroundColor: frameObj.backgroundColor || "#f6f6f6",
-              border: "1px solid rgba(0, 0, 0, 0.1)",
+              border:
+                frameObj.isAgentCreating &&
+                frameObj.backgroundColor === "transparent"
+                  ? "none"
+                  : "1px solid rgba(0, 0, 0, 0.1)",
               borderRadius: `${frameObj.borderRadius || 10}px`,
               boxSizing: "border-box",
+              // During ANY resize operation, disable pointer events on ALL autolayout frame content
+              ...(isResizing && {
+                pointerEvents: "none" as const,
+                cursor: "inherit", // Inherit cursor from body during resize
+              }),
               // For autolayout, don't constrain size - let flexbox determine it
               ...(autoLayout
                 ? {
@@ -664,11 +714,13 @@ export function CanvasObject({
                     padding: `${padding}px`,
                     gap: `${gap}px`,
                     alignItems: "flex-start",
+                    alignContent: "flex-start", // Pack wrapped rows tightly together
                     position: "relative",
                     minWidth: minWidth ? `${minWidth}px` : undefined,
                     minHeight: minHeight ? `${minHeight}px` : undefined,
                     width: `${object.width}px`,
-                    height: `${object.height}px`,
+                    // For grid layout, height should fit content
+                    height: layout === "grid" ? "auto" : `${object.height}px`,
                   }
                 : {
                     // Non-autolayout: fill parent and inset for selection bounds
@@ -715,6 +767,7 @@ export function CanvasObject({
                   zoomLevel={zoomLevel}
                   isActiveToolbar={activeToolbarId === child.id}
                   toolbarSystemActivated={toolbarSystemActivated}
+                  isResizing={isResizing}
                   selectedIds={selectedIds}
                   hoveredBySelectionIds={hoveredBySelectionIds}
                   activeToolbarId={activeToolbarId}
@@ -839,25 +892,44 @@ export function CanvasObject({
         ...(isChildOfAutolayoutFrame && {
           flexShrink: 0,
         }),
-        // For autolayout frames, remove size constraints to fit content
+        // For autolayout frames: constrain width but let height grow with content
+        // For other objects: use fixed dimensions
         ...(isAutolayoutFrame
           ? {
-              width: "fit-content",
+              width: `${object.width}px`,
               height: "fit-content",
             }
           : {
-              width: object.width,
-              height: object.height,
+              width: `${object.width}px`,
+              height: `${object.height}px`,
             }),
         // Clip this object if it's a child of a non-autolayout frame
         clipPath: clipPath,
         zIndex: object.type === "frame" ? 100 : 200, // Frames below other objects, which are below selection bounds
+        // NUCLEAR OPTION: During ANY resize, disable pointer events on ALL objects
+        // The only things that should work during resize are:
+        // 1. Canvas itself (for mouse move events)
+        // 2. Resize handles (they have pointerEvents: "auto")
+        ...(isResizing && {
+          pointerEvents: "none" as const,
+        }),
       }}
-      className="cursor-move group"
+      className={`group ${
+        // During resize, don't apply any cursor class so global body cursor shows through
+        isResizing && object.parentId
+          ? ""
+          : isChildOfAutolayoutFrame
+          ? "cursor-default"
+          : "cursor-move"
+      }`}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={
+        isResizing && object.parentId ? undefined : handleMouseEnter
+      }
+      onMouseLeave={
+        isResizing && object.parentId ? undefined : handleMouseLeave
+      }
     >
       {/* Selection border - only show for single selection */}
       {isSelected && !isPartOfMultiSelect && !isDraggingAny && (
@@ -880,8 +952,16 @@ export function CanvasObject({
             <>
               {/* Top-left - only show above 20% zoom */}
               {zoomLevel > 0.2 && (
-                <div
-                  className="absolute bg-blue-500 rounded-full cursor-nwse-resize hover:bg-blue-600"
+                <motion.div
+                  className="absolute bg-blue-500 cursor-nwse-resize hover:bg-blue-600"
+                  initial={false}
+                  animate={{
+                    borderRadius: isShiftPressed ? "20%" : "50%",
+                  }}
+                  transition={{
+                    duration: 0.15,
+                    ease: "easeInOut",
+                  }}
                   style={{
                     top: -viewportHandleSize / 2,
                     left: -viewportHandleSize / 2,
@@ -891,13 +971,22 @@ export function CanvasObject({
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     onResizeStart("top-left", e);
                   }}
                 />
               )}
               {/* Top-right - ALWAYS show (even at small zoom) */}
-              <div
-                className="absolute bg-blue-500 rounded-full cursor-nesw-resize hover:bg-blue-600"
+              <motion.div
+                className="absolute bg-blue-500 cursor-nesw-resize hover:bg-blue-600"
+                initial={false}
+                animate={{
+                  borderRadius: isShiftPressed ? "20%" : "50%",
+                }}
+                transition={{
+                  duration: 0.15,
+                  ease: "easeInOut",
+                }}
                 style={{
                   top: -viewportHandleSize / 2,
                   right: -viewportHandleSize / 2,
@@ -907,13 +996,22 @@ export function CanvasObject({
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   onResizeStart("top-right", e);
                 }}
               />
               {/* Bottom-left - only show above 20% zoom */}
               {zoomLevel > 0.2 && (
-                <div
-                  className="absolute bg-blue-500 rounded-full cursor-nesw-resize hover:bg-blue-600"
+                <motion.div
+                  className="absolute bg-blue-500 cursor-nesw-resize hover:bg-blue-600"
+                  initial={false}
+                  animate={{
+                    borderRadius: isShiftPressed ? "20%" : "50%",
+                  }}
+                  transition={{
+                    duration: 0.15,
+                    ease: "easeInOut",
+                  }}
                   style={{
                     bottom: -viewportHandleSize / 2,
                     left: -viewportHandleSize / 2,
@@ -923,14 +1021,23 @@ export function CanvasObject({
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     onResizeStart("bottom-left", e);
                   }}
                 />
               )}
               {/* Bottom-right - only show above 20% zoom */}
               {zoomLevel > 0.2 && (
-                <div
-                  className="absolute bg-blue-500 rounded-full cursor-nwse-resize hover:bg-blue-600"
+                <motion.div
+                  className="absolute bg-blue-500 cursor-nwse-resize hover:bg-blue-600"
+                  initial={false}
+                  animate={{
+                    borderRadius: isShiftPressed ? "20%" : "50%",
+                  }}
+                  transition={{
+                    duration: 0.15,
+                    ease: "easeInOut",
+                  }}
                   style={{
                     bottom: -viewportHandleSize / 2,
                     right: -viewportHandleSize / 2,
@@ -940,6 +1047,7 @@ export function CanvasObject({
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     onResizeStart("bottom-right", e);
                   }}
                 />
@@ -968,13 +1076,21 @@ export function CanvasObject({
 
       {/* Content */}
       <div
-        className={`relative w-full h-full overflow-hidden ${
+        className={`relative w-full h-full ${
+          // Don't clip overflow for frames (especially during autolayout)
+          object.type !== "frame" ? "overflow-hidden" : ""
+        } ${
           // Only apply white background to certain types
           ["document"].includes(object.type) ? "bg-white" : ""
         }`}
         style={{
           borderRadius: viewportBorderRadius,
           zIndex: 1, // Below borders but still positioned
+          // Disable pointer events on content during resize for ALL children
+          ...(isResizing &&
+            object.parentId && {
+              pointerEvents: "none" as const,
+            }),
         }}
       >
         {renderContent()}
@@ -1061,8 +1177,7 @@ export function CanvasObject({
         )}
 
       {/* Generating state header - shown ALWAYS when generating (not just when selected, but not for objects inside frames) */}
-      {!isDraggingAny &&
-        object.state === "generating" &&
+      {object.state === "generating" &&
         object.type !== "frame" &&
         !object.parentId &&
         shouldShowMetadata(object.type) && (
@@ -1109,25 +1224,49 @@ export function CanvasObject({
         )}
 
       {/* Frame label - always shown for frames */}
-      {object.type === "frame" && !isDraggingAny && (
-        <div
-          className="absolute text-xs font-normal cursor-move"
-          style={{
-            top: -20 / zoomLevel,
-            left: 4 / zoomLevel,
-            fontSize: `${12 / zoomLevel}px`,
-            color: "rgba(0, 0, 0, 0.7)",
-            lineHeight: `${16 / zoomLevel}px`,
-            fontFamily: "Graphik, sans-serif",
-            whiteSpace: "nowrap",
-            zIndex: 50, // Lower z-index so it doesn't interfere with selection bounds
-            pointerEvents: "auto",
-          }}
-          onMouseDown={handleMouseDown}
-        >
-          {isAutolayoutFrame ? "Autolayout Frame" : "Frame"}
-        </div>
-      )}
+      {object.type === "frame" &&
+        (() => {
+          const frameObj = object as any;
+          const isAgentFrame = frameObj.createdBy === "agent";
+          const isAgentCreating = frameObj.isAgentCreating || false;
+
+          // Use agent frame header if it's an agent frame
+          if (isAgentFrame) {
+            return (
+              <AgentFrameHeader
+                isCreating={isAgentCreating}
+                frameName={object.name}
+                zoomLevel={zoomLevel}
+                frameWidth={object.width}
+                onMouseDown={handleMouseDown}
+              />
+            );
+          }
+
+          // Regular frame label
+          return (
+            <div
+              className="absolute text-xs font-normal cursor-move"
+              style={{
+                top: -20 / zoomLevel,
+                left: 4 / zoomLevel,
+                fontSize: `${12 / zoomLevel}px`,
+                color: "rgba(0, 0, 0, 0.7)",
+                lineHeight: `${16 / zoomLevel}px`,
+                fontFamily: "Graphik, sans-serif",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: `${object.width - 8 / zoomLevel}px`,
+                zIndex: 50,
+                pointerEvents: "auto",
+              }}
+              onMouseDown={handleMouseDown}
+            >
+              {isAutolayoutFrame ? "Autolayout Frame" : "Frame"}
+            </div>
+          );
+        })()}
 
       {/* Toolbar is now rendered at App level */}
     </motion.div>

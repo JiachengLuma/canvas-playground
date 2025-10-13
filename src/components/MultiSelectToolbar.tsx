@@ -11,6 +11,7 @@ interface MultiSelectToolbarProps {
   onAIPrompt?: (prompt: string) => void;
   onRerun?: () => void;
   onReframe?: () => void;
+  onFrameWithAutolayout?: () => void;
   onMore?: () => void;
   onDownload?: () => void;
 }
@@ -24,6 +25,7 @@ export function MultiSelectToolbar({
   onAIPrompt,
   onRerun,
   onReframe,
+  onFrameWithAutolayout,
   onMore,
   onDownload,
 }: MultiSelectToolbarProps) {
@@ -63,6 +65,7 @@ export function MultiSelectToolbar({
           onAIPrompt={onAIPrompt}
           onRerun={onRerun}
           onReframe={onReframe}
+          onFrameWithAutolayout={onFrameWithAutolayout}
           onMore={onMore}
           onDownload={onDownload}
         />

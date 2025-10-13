@@ -66,6 +66,7 @@ export interface CanvasLayerProps {
   onDuplicate: (id: string) => void;
   onRotate: (id: string) => void;
   onColorTagChange: (id: string) => void;
+  onMultiSelectColorTagChange: () => void; // Multi-select color tag change
   onContentUpdate: (id: string, content: string) => void;
 
   // Toolbar handlers
@@ -85,6 +86,7 @@ export interface CanvasLayerProps {
   onMore: (id: string) => void;
   onDownload: (id: string) => void;
   onFrameSelection: () => void;
+  onFrameSelectionWithAutolayout: () => void;
 
   // Drag handle
   onDragHandleStart: (e: React.MouseEvent) => void;
@@ -127,6 +129,7 @@ export function CanvasLayer({
   onDuplicate,
   onRotate,
   onColorTagChange,
+  onMultiSelectColorTagChange,
   onContentUpdate,
   onSetActiveToolbar,
   onActivateToolbarSystem,
@@ -142,6 +145,7 @@ export function CanvasLayer({
   onMore,
   onDownload,
   onFrameSelection,
+  onFrameSelectionWithAutolayout,
   onDragHandleStart,
 }: CanvasLayerProps) {
   // Calculate background size and position based on zoom level and pan offset
@@ -256,12 +260,10 @@ export function CanvasLayer({
               zoomLevel={zoomLevel}
               bounds={selectionBounds}
               colorTag={multiSelectColorTag}
-              onColorTagChange={() => {
-                // Apply to all selected
-                selectedIds.forEach(onColorTagChange);
-              }}
+              onColorTagChange={onMultiSelectColorTagChange}
               onAIPrompt={(prompt) => console.log("Multi AI prompt:", prompt)}
               onReframe={onFrameSelection}
+              onFrameWithAutolayout={onFrameSelectionWithAutolayout}
             />
           )}
         </AnimatePresence>
@@ -303,7 +305,11 @@ export function CanvasLayer({
           !isDraggingObject &&
           !isResizing &&
           !isDraggingHandle &&
-          shouldShowDragHandle(activeObject.type) && (
+          shouldShowDragHandle(activeObject.type) &&
+          !(
+            activeObject.type === "frame" &&
+            (activeObject as any).isAgentCreating
+          ) && (
             <DragHandle
               x={activeObject.x * zoomLevel + panOffset.x}
               y={activeObject.y * zoomLevel + panOffset.y}
@@ -312,13 +318,7 @@ export function CanvasLayer({
               rotation={0}
               onDragStart={onDragHandleStart}
               onMouseEnter={onToolbarHoverEnter}
-              onMouseLeave={() => {
-                // Only hide toolbar if the active object is NOT selected
-                // For generating placeholders, they don't have toolbars anyway
-                if (!selectedIds.includes(activeObject.id)) {
-                  onToolbarHoverLeave();
-                }
-              }}
+              onMouseLeave={onToolbarHoverLeave}
             />
           )}
       </AnimatePresence>
@@ -327,7 +327,6 @@ export function CanvasLayer({
       <SingleObjectToolbarWrapper
         activeObject={activeObject}
         objects={objects}
-        selectedIds={selectedIds}
         isMultiSelect={isMultiSelect}
         isDraggingObject={isDraggingObject}
         isResizing={isResizing}

@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useState, useEffect } from "react";
 
 interface SelectionBoundsProps {
   minX: number;
@@ -17,6 +18,30 @@ export function SelectionBounds({
   zoomLevel,
   onResizeStart,
 }: SelectionBoundsProps) {
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
+
+  // Listen for Shift key to show proportional scale mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        setIsShiftPressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        setIsShiftPressed(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
   const width = maxX - minX;
   const height = maxY - minY;
   const viewportBorderWidth = 2 / zoomLevel;
@@ -46,8 +71,15 @@ export function SelectionBounds({
       {onResizeStart && (
         <>
           {/* Top-left */}
-          <div
-            className="absolute bg-blue-500 rounded-full cursor-nwse-resize hover:bg-blue-600"
+          <motion.div
+            className="absolute bg-blue-500 cursor-nwse-resize hover:bg-blue-600"
+            animate={{
+              borderRadius: isShiftPressed ? "20%" : "50%",
+            }}
+            transition={{
+              duration: 0.15,
+              ease: "easeInOut",
+            }}
             style={{
               top: -viewportHandleSize / 2,
               left: -viewportHandleSize / 2,
@@ -57,12 +89,20 @@ export function SelectionBounds({
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               onResizeStart("top-left", e);
             }}
           />
           {/* Top-right */}
-          <div
-            className="absolute bg-blue-500 rounded-full cursor-nesw-resize hover:bg-blue-600"
+          <motion.div
+            className="absolute bg-blue-500 cursor-nesw-resize hover:bg-blue-600"
+            animate={{
+              borderRadius: isShiftPressed ? "20%" : "50%",
+            }}
+            transition={{
+              duration: 0.15,
+              ease: "easeInOut",
+            }}
             style={{
               top: -viewportHandleSize / 2,
               right: -viewportHandleSize / 2,
@@ -72,12 +112,20 @@ export function SelectionBounds({
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               onResizeStart("top-right", e);
             }}
           />
           {/* Bottom-left */}
-          <div
-            className="absolute bg-blue-500 rounded-full cursor-nesw-resize hover:bg-blue-600"
+          <motion.div
+            className="absolute bg-blue-500 cursor-nesw-resize hover:bg-blue-600"
+            animate={{
+              borderRadius: isShiftPressed ? "20%" : "50%",
+            }}
+            transition={{
+              duration: 0.15,
+              ease: "easeInOut",
+            }}
             style={{
               bottom: -viewportHandleSize / 2,
               left: -viewportHandleSize / 2,
@@ -87,12 +135,20 @@ export function SelectionBounds({
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               onResizeStart("bottom-left", e);
             }}
           />
           {/* Bottom-right */}
-          <div
-            className="absolute bg-blue-500 rounded-full cursor-nwse-resize hover:bg-blue-600"
+          <motion.div
+            className="absolute bg-blue-500 cursor-nwse-resize hover:bg-blue-600"
+            animate={{
+              borderRadius: isShiftPressed ? "20%" : "50%",
+            }}
+            transition={{
+              duration: 0.15,
+              ease: "easeInOut",
+            }}
             style={{
               bottom: -viewportHandleSize / 2,
               right: -viewportHandleSize / 2,
@@ -102,6 +158,7 @@ export function SelectionBounds({
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               onResizeStart("bottom-right", e);
             }}
           />

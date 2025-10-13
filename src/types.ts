@@ -174,6 +174,8 @@ export interface FrameObject extends BaseCanvasObject {
   backgroundColor?: string;
   borderRadius?: number;
   gridColumns?: number | 'auto-fit';
+  isAgentCreating?: boolean;    // Whether agent is currently creating content
+  agentCreationStep?: number;   // Current step in the creation sequence (0-5)
 }
 
 // ============================================================================

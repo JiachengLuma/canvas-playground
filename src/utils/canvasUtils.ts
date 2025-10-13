@@ -97,8 +97,8 @@ export function getObjectsInBox(
  * Returns the gap (in pixels) between object and toolbar
  */
 export function getToolbarGap(zoomLevel: number): number {
-  // Small gap that scales slightly with zoom (1-4px)
-  return 1 + 3 * Math.min(1, zoomLevel);
+  // 8px at normal/high zoom, scales down to 4px minimum when zoomed out
+  return 4 + 4 * Math.min(1, zoomLevel);
 }
 
 /**

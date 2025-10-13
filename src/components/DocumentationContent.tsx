@@ -222,20 +222,40 @@ export const getDocumentationSections = (): DocSection[] => [
                 <h3 className="font-semibold mb-2">Timing Behavior</h3>
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li>
-                    <strong>First hover:</strong> 300ms delay before toolbar
-                    appears
+                    <strong>First hover:</strong> 1000ms (1 second) dwell time
+                    before toolbar appears
                   </li>
                   <li>
-                    <strong>Subsequent hovers:</strong> Instant appearance
-                    (system activated)
+                    <strong>Subsequent hovers:</strong> Instant appearance once
+                    system is activated
                   </li>
                   <li>
-                    <strong>Grace period:</strong> 150ms to move cursor to
-                    toolbar
+                    <strong>Grace period:</strong> 150ms to move cursor from
+                    object to toolbar
                   </li>
                   <li>
-                    <strong>Reset:</strong> After 1000ms outside any hover,
-                    system resets to 300ms delay
+                    <strong>System reset:</strong> After 1000ms outside any
+                    hover, system resets to 1 second dwell
+                  </li>
+                </ul>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Compact Mode</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  When an object is narrower than 60% of the full toolbar width,
+                  a compact toolbar appears:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>Shows "Tab | ..." button instead of full toolbar</li>
+                  <li>
+                    Clicking the compact button zooms the object to fit in view
+                  </li>
+                  <li>
+                    After zoom, full toolbar becomes visible at proper size
+                  </li>
+                  <li>
+                    Prevents toolbar from being wider than the object itself
                   </li>
                 </ul>
               </div>
@@ -244,15 +264,15 @@ export const getDocumentationSections = (): DocSection[] => [
                 <h3 className="font-semibold mb-2">Zoom Threshold</h3>
                 <p className="text-sm text-gray-600">
                   Hover toolbar only appears when zoom level is{" "}
-                  <strong>35% or above</strong>. This prevents toolbar clutter
-                  when zoomed out.
+                  <strong>20% or above</strong>. Below 20%, toolbar is hidden on
+                  hover (but still appears when object is selected).
                 </p>
               </div>
 
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                 <p className="text-sm text-amber-800">
                   <strong>Note:</strong> Toolbar automatically hides during drag
-                  operations and box selections.
+                  operations and box selections for cleaner interaction.
                 </p>
               </div>
             </div>
@@ -623,6 +643,26 @@ export const getDocumentationSections = (): DocSection[] => [
                     </kbd>
                   </div>
                   <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">
+                      Duplicate selected
+                    </span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">
+                      Cmd/Ctrl + D
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Undo</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">
+                      Cmd/Ctrl + Z
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Redo</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">
+                      Cmd/Ctrl + Shift + Z
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Deselect all</span>
                     <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">
                       Escape
@@ -634,6 +674,12 @@ export const getDocumentationSections = (): DocSection[] => [
               <div className="border rounded-lg p-4">
                 <h3 className="font-semibold mb-3">Selection</h3>
                 <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Select all</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">
+                      Cmd/Ctrl + A
+                    </kbd>
+                  </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">
                       Add to selection
@@ -648,6 +694,12 @@ export const getDocumentationSections = (): DocSection[] => [
                     </span>
                     <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">
                       Cmd + Click
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Box selection</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">
+                      Click + Drag on canvas
                     </kbd>
                   </div>
                 </div>
@@ -689,9 +741,19 @@ export const getDocumentationSections = (): DocSection[] => [
                 <h3 className="font-semibold mb-3">Actions</h3>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Duplicate</span>
+                    <span className="text-sm text-gray-600">
+                      Duplicate (drag)
+                    </span>
                     <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">
                       Option/Alt + Drag
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">
+                      Duplicate (in place)
+                    </span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">
+                      Cmd/Ctrl + D
                     </kbd>
                   </div>
                 </div>
@@ -717,22 +779,29 @@ export const getDocumentationSections = (): DocSection[] => [
               </div>
 
               <div className="border rounded-lg p-4">
-                <h3 className="font-semibold mb-2">Toolbar Visibility Threshold</h3>
+                <h3 className="font-semibold mb-2">
+                  Toolbar Visibility Threshold
+                </h3>
                 <p className="text-sm text-gray-600 mb-2">
                   Hover toolbars are optimized for different zoom levels:
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
                   <li>
-                    <strong>Above 35% zoom (0.35x):</strong> Normal toolbar
-                    behavior - toolbars appear on hover for artifacts and frames
+                    <strong>Above 20% zoom (0.20x):</strong> Toolbars appear on
+                    hover after 1 second dwell time
                   </li>
                   <li>
-                    <strong>Below 35% zoom (0.35x):</strong> Toolbars hidden to
-                    reduce visual clutter when viewing at bird's-eye view
+                    <strong>Below 20% zoom (0.20x):</strong> Toolbars hidden on
+                    hover to reduce clutter (but still appear when you select an
+                    object)
                   </li>
                   <li>
-                    Selection indicators (blue outline) remain visible at all zoom
-                    levels
+                    <strong>Compact mode:</strong> When object is narrower than
+                    toolbar, shows "Tab | ..." button that zooms to fit
+                  </li>
+                  <li>
+                    Selection indicators (blue outline) remain visible at all
+                    zoom levels
                   </li>
                 </ul>
               </div>
@@ -745,21 +814,24 @@ export const getDocumentationSections = (): DocSection[] => [
                     Selection, dragging, resizing, and rotation
                   </li>
                   <li>
-                    <strong>Zoom at cursor:</strong> Cmd/Ctrl+Scroll zooms toward
-                    your cursor position
+                    <strong>Zoom at cursor:</strong> Cmd/Ctrl+Scroll zooms
+                    toward your cursor position
                   </li>
                   <li>
                     <strong>Canvas center zoom:</strong> Zoom controls (buttons)
                     zoom toward canvas center
                   </li>
                   <li>
-                    <strong>Zoom step:</strong> Each zoom increment is 25% (0.25x)
+                    <strong>Zoom step:</strong> Each zoom increment is 25%
+                    (0.25x)
                   </li>
                 </ul>
               </div>
 
               <div className="border rounded-lg p-4">
-                <h3 className="font-semibold mb-2">Visual Elements at Different Zooms</h3>
+                <h3 className="font-semibold mb-2">
+                  Visual Elements at Different Zooms
+                </h3>
                 <div className="space-y-2 text-sm text-gray-600">
                   <div>
                     <strong>Always Visible:</strong>
@@ -768,14 +840,20 @@ export const getDocumentationSections = (): DocSection[] => [
                       <li>Selection indicators (blue outline)</li>
                       <li>Color tags (dots in top-right corner)</li>
                       <li>Grid pattern (background)</li>
+                      <li>Drag handles (for artifacts when selected)</li>
+                      <li>Resize handles (for selected resizable objects)</li>
                     </ul>
                   </div>
                   <div>
                     <strong>Conditional (zoom dependent):</strong>
                     <ul className="list-disc list-inside ml-4 mt-1">
                       <li>
-                        Hover toolbars (hidden below 35% for performance and
-                        clarity)
+                        Hover toolbars (hidden on hover below 20%, but still
+                        visible when selected)
+                      </li>
+                      <li>
+                        Compact toolbar mode (when object &lt; 60% of toolbar
+                        width)
                       </li>
                       <li>
                         Text readability (may become too small below 50% zoom)
@@ -791,20 +869,20 @@ export const getDocumentationSections = (): DocSection[] => [
                 </h3>
                 <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
                   <li>
-                    <strong>100% zoom (1.0x):</strong> Ideal for detailed work and
-                    content creation
+                    <strong>100% zoom (1.0x):</strong> Ideal for detailed work
+                    and content creation
                   </li>
                   <li>
                     <strong>50-75% zoom:</strong> Good for organizing multiple
                     objects
                   </li>
                   <li>
-                    <strong>25-35% zoom:</strong> Bird's-eye view for large canvas
-                    overview
+                    <strong>25-35% zoom:</strong> Bird's-eye view for large
+                    canvas overview
                   </li>
                   <li>
-                    <strong>150-200% zoom:</strong> Close inspection of details or
-                    small text
+                    <strong>150-200% zoom:</strong> Close inspection of details
+                    or small text
                   </li>
                 </ul>
               </div>

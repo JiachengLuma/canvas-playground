@@ -18,6 +18,7 @@ interface HeaderToolbarProps {
   onAddArtifact: (type: ArtifactType) => void;
   onAddPlaceholder: (type: ArtifactType) => void;
   onAddFrame: () => void;
+  onAddAgentFrame: () => void;
   onOpenDocumentation?: () => void;
 }
 
@@ -26,6 +27,7 @@ export function HeaderToolbar({
   onAddArtifact,
   onAddPlaceholder,
   onAddFrame,
+  onAddAgentFrame,
   onOpenDocumentation,
 }: HeaderToolbarProps) {
   return (
@@ -109,6 +111,16 @@ export function HeaderToolbar({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Agent Frame Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={onAddAgentFrame}
+        >
+          Agent Frame
+        </Button>
       </div>
 
       {/* Right side - Documentation */}

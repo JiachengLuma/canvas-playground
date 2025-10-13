@@ -144,6 +144,15 @@ export function useDrag(
           return obj;
         }
 
+        // Skip children of autolayout frames - they can't be dragged out
+        // Their position is managed by the frame's layout system
+        if (obj.parentId) {
+          const parent = prev.find((o) => o.id === obj.parentId);
+          if (parent && parent.type === "frame" && (parent as any).autoLayout) {
+            return obj; // Don't change parent relationship for autolayout children
+          }
+        }
+
         // Get object center position
         const objCenterX = obj.x + obj.width / 2;
         const objCenterY = obj.y + obj.height / 2;
@@ -307,6 +316,13 @@ export function useDrag(
     const isAutolayoutFrame = isFrame && (resizingObj as any).autoLayout;
     const layout = isFrame ? ((resizingObj as any).layout || "hstack") : null;
     
+    // For autolayout grid frames with auto-height, don't adjust Y position when dragging top corners
+    if (isAutolayoutFrame && layout === "grid" && !shiftKey) {
+      if (resizeCorner === "top-left" || resizeCorner === "top-right") {
+        newY = startY; // Keep Y position fixed
+      }
+    }
+    
     // Calculate minimum size based on object type
     let minSize = 50;
     let minWidth = minSize;
@@ -356,22 +372,40 @@ export function useDrag(
         const padding = frameObj.padding || 10;
         const gap = frameObj.gap || 10;
         const children = prev.filter(obj => childrenIds.includes(obj.id));
+        const maxItemsPerRow = frameObj.gridColumns === "auto-fit" ? 5 : frameObj.gridColumns || 5;
         
         if (children.length > 0) {
-          const maxChildWidth = Math.max(...children.map(c => c.width));
-          const maxChildHeight = Math.max(...children.map(c => c.height));
-          
-          // Calculate how many items fit per row based on new width
           const borderWidth = 2;
-          const availableWidth = newWidth - padding * 2 - borderWidth;
-          const itemWidthWithGap = maxChildWidth + gap;
-          const itemsPerRow = Math.max(1, Math.floor((availableWidth + gap) / itemWidthWithGap));
           
-          // Calculate number of rows needed
-          const numRows = Math.ceil(children.length / itemsPerRow);
-          
-          // Calculate actual height needed
-          finalHeight = maxChildHeight * numRows + gap * (numRows - 1) + padding * 2 + borderWidth;
+          // Simulate actual flow to calculate height with variable-width items
+          let currentRowWidth = 0;
+          let currentRowHeight = 0;
+          let totalHeight = 0;
+          let itemsInCurrentRow = 0;
+
+          children.forEach((child, index) => {
+            if (itemsInCurrentRow >= maxItemsPerRow && itemsInCurrentRow > 0) {
+              // Finalize current row
+              totalHeight += currentRowHeight + gap;
+              
+              // Start new row
+              currentRowWidth = child.width + gap;
+              currentRowHeight = child.height;
+              itemsInCurrentRow = 1;
+            } else {
+              // Add to current row
+              currentRowWidth += child.width + gap;
+              currentRowHeight = Math.max(currentRowHeight, child.height);
+              itemsInCurrentRow++;
+            }
+
+            // If this is the last item, finalize the row
+            if (index === children.length - 1) {
+              totalHeight += currentRowHeight;
+            }
+          });
+
+          finalHeight = totalHeight + padding * 2 + borderWidth;
         }
       }
 

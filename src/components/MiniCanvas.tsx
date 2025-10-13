@@ -11,8 +11,10 @@ import { useSelection } from "../hooks/useSelection";
 import { useDrag } from "../hooks/useDrag";
 import { useToolbar } from "../hooks/useToolbar";
 import { usePan } from "../hooks/usePan";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { ZoomControls } from "./ZoomControls";
 import { screenToCanvas } from "../utils/canvasUtils";
+import { getRandomVideoUrl } from "../utils/objectFactory";
 
 interface MiniCanvasProps {
   subsectionId: string | null;
@@ -229,8 +231,7 @@ const getExampleObjects = (subsectionId: string | null): CanvasObjectType[] => {
         width: 280,
         height: 160,
         state: "idle",
-        content:
-          "https://cdn.midjourney.com/video/32f4b0f1-988c-4699-a94c-d46372789aae/0.mp4",
+        content: getRandomVideoUrl(),
         duration: 5,
         colorTag: "none",
         metadata: {
@@ -481,6 +482,74 @@ const getExampleObjects = (subsectionId: string | null): CanvasObjectType[] => {
         colorTag: "none",
       } as CanvasObjectType,
     ],
+    "zoom-behavior": [
+      {
+        id: "demo-zoom-1",
+        type: "image",
+        name: "Zoom Demo Image",
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 160,
+        state: "idle",
+        content:
+          "https://cdn.midjourney.com/c06a44a1-490a-4473-b458-3ff04e60fbba/0_0.png",
+        colorTag: "none",
+        metadata: {
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          createdBy: { type: "model", name: "Ray3" },
+        },
+      } as CanvasObjectType,
+      {
+        id: "demo-zoom-2",
+        type: "text",
+        name: "Zoom Instructions",
+        x: 340,
+        y: 120,
+        width: 240,
+        height: 80,
+        state: "idle",
+        content:
+          "Use Cmd+Scroll to zoom at cursor. Use zoom controls to zoom at center.",
+        colorTag: "none",
+      } as CanvasObjectType,
+      {
+        id: "demo-zoom-3",
+        type: "pdf",
+        name: "PDF with Toolbar",
+        x: 100,
+        y: 300,
+        width: 200,
+        height: 260,
+        state: "idle",
+        fileUrl:
+          "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        fileName: "demo.pdf",
+        colorTag: "none",
+        metadata: {
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          currentPage: 1,
+          totalPages: 3,
+        },
+      } as CanvasObjectType,
+      {
+        id: "demo-zoom-4",
+        type: "shape",
+        name: "Zoom Scale Reference",
+        x: 360,
+        y: 360,
+        width: 100,
+        height: 100,
+        state: "idle",
+        shapeType: "circle",
+        fillColor: "#10b981",
+        strokeColor: "#059669",
+        strokeWidth: 3,
+        colorTag: "green",
+      } as CanvasObjectType,
+    ],
     "resize-behavior": [
       {
         id: "demo-resize-image",
@@ -654,6 +723,20 @@ export function MiniCanvas({ subsectionId }: MiniCanvasProps) {
   );
   const toolbar = useToolbar();
   const pan = usePan();
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onDelete: () => {
+      if (selection.selectedIds.length > 0) {
+        canvas.deleteObjects(selection.selectedIds);
+        selection.deselectAll();
+        toolbar.setActiveToolbarId(null);
+      }
+    },
+    onToggleFrameDrawing: () => {
+      // Not needed in mini canvas
+    },
+  });
 
   // Update objects when subsection changes
   useEffect(() => {
@@ -854,6 +937,269 @@ export function MiniCanvas({ subsectionId }: MiniCanvasProps) {
     drag.startHandleDrag(e.clientX, e.clientY);
   };
 
+  const handleUnframe = (frameId: string) => {
+    const frame = canvas.objects.find((obj) => obj.id === frameId);
+    if (!frame || frame.type !== "frame") {
+      return;
+    }
+
+    const frameObj = frame as any;
+    const childrenIds = frameObj.children || [];
+    const wasAutolayout = frameObj.autoLayout;
+
+    // If autolayout was enabled, calculate children's current flexbox positions
+    let childPositions: Map<string, { x: number; y: number }> = new Map();
+    if (wasAutolayout) {
+      const children = canvas.objects.filter((obj) =>
+        childrenIds.includes(obj.id)
+      );
+      const padding = frameObj.padding || 10;
+      const gap = frameObj.gap || 10;
+      const layout = frameObj.layout || "hstack";
+
+      let currentX = frame.x + padding;
+      let currentY = frame.y + padding;
+      let rowHeight = 0;
+
+      children.forEach((child) => {
+        childPositions.set(child.id, { x: currentX, y: currentY });
+
+        if (layout === "hstack") {
+          currentX += child.width + gap;
+        } else if (layout === "vstack") {
+          currentY += child.height + gap;
+        } else if (layout === "grid") {
+          currentX += child.width + gap;
+          rowHeight = Math.max(rowHeight, child.height);
+          // Simple grid wrapping logic
+          if (currentX + child.width > frame.x + frame.width - padding) {
+            currentX = frame.x + padding;
+            currentY += rowHeight + gap;
+            rowHeight = 0;
+          }
+        }
+      });
+    }
+
+    // Remove frame and update children
+    const updatedObjects = canvas.objects
+      .filter((obj) => obj.id !== frameId) // Remove the frame
+      .map((obj) => {
+        if (childrenIds.includes(obj.id)) {
+          const { parentId, ...rest } = obj as any;
+          // Update position if autolayout was enabled
+          if (wasAutolayout && childPositions.has(obj.id)) {
+            const pos = childPositions.get(obj.id)!;
+            return { ...rest, x: pos.x, y: pos.y };
+          }
+          return rest;
+        }
+        return obj;
+      });
+
+    canvas.setObjects(updatedObjects);
+
+    // Select the children that were in the frame
+    selection.deselectAll();
+    childrenIds.forEach((id: string) => selection.selectObject(id, true));
+    toolbar.setActiveToolbarId(null);
+  };
+
+  const handleToggleAutolayout = (frameId: string) => {
+    const frame = canvas.objects.find((obj) => obj.id === frameId);
+    if (!frame || frame.type !== "frame") {
+      return;
+    }
+
+    const frameObj = frame as any;
+    const wasAutolayout = frameObj.autoLayout;
+    const layout = frameObj.layout || "hstack";
+
+    // If turning OFF autolayout, calculate children's current flexbox positions AND frame size
+    let childPositions: Map<string, { x: number; y: number }> = new Map();
+    let newFrameSize = { width: frame.width, height: frame.height };
+
+    if (wasAutolayout) {
+      const children = canvas.objects.filter((obj) => obj.parentId === frameId);
+      const padding = frameObj.padding || 10;
+      const gap = frameObj.gap || 10;
+
+      let currentX = frame.x + padding;
+      let currentY = frame.y + padding;
+      let rowHeight = 0;
+      let maxX = currentX;
+      let maxY = currentY;
+
+      children.forEach((child) => {
+        if (layout === "hstack") {
+          childPositions.set(child.id, { x: currentX, y: currentY });
+          currentX += child.width + gap;
+          maxX = Math.max(maxX, currentX - gap);
+          maxY = Math.max(maxY, currentY + child.height);
+        } else if (layout === "vstack") {
+          childPositions.set(child.id, { x: currentX, y: currentY });
+          currentY += child.height + gap;
+          maxX = Math.max(maxX, currentX + child.width);
+          maxY = Math.max(maxY, currentY - gap);
+        } else if (layout === "grid") {
+          if (
+            currentX + child.width > frame.x + frame.width - padding &&
+            currentX > frame.x + padding
+          ) {
+            currentX = frame.x + padding;
+            currentY += rowHeight + gap;
+            rowHeight = 0;
+          }
+
+          childPositions.set(child.id, { x: currentX, y: currentY });
+          rowHeight = Math.max(rowHeight, child.height);
+          maxX = Math.max(maxX, currentX + child.width);
+          maxY = Math.max(maxY, currentY + child.height);
+          currentX += child.width + gap;
+        }
+      });
+
+      if (children.length > 0) {
+        const borderWidth = 2;
+
+        if (layout === "hstack") {
+          const totalWidth =
+            children.reduce((sum, child) => sum + child.width, 0) +
+            gap * (children.length - 1) +
+            padding * 2 +
+            borderWidth;
+          const maxHeight =
+            Math.max(...children.map((child) => child.height)) +
+            padding * 2 +
+            borderWidth;
+          newFrameSize = { width: totalWidth, height: maxHeight };
+        } else if (layout === "vstack") {
+          const maxWidth =
+            Math.max(...children.map((child) => child.width)) +
+            padding * 2 +
+            borderWidth;
+          const totalHeight =
+            children.reduce((sum, child) => sum + child.height, 0) +
+            gap * (children.length - 1) +
+            padding * 2 +
+            borderWidth;
+          newFrameSize = { width: maxWidth, height: totalHeight };
+        } else {
+          newFrameSize = {
+            width: maxX - frame.x + padding + borderWidth,
+            height: maxY - frame.y + padding + borderWidth,
+          };
+        }
+      }
+    } else {
+      // Turning ON autolayout
+      const targetLayout = layout === "hstack" ? "grid" : layout;
+      const children = canvas.objects.filter((obj) => obj.parentId === frameId);
+
+      if (children.length > 0) {
+        const padding = frameObj.padding || 10;
+        const gap = frameObj.gap || 10;
+
+        if (targetLayout === "grid") {
+          // Grid layout: calculate based on actual item sizes and flow
+          const maxItemsPerRow =
+            frameObj.gridColumns === "auto-fit" ? 5 : frameObj.gridColumns || 5;
+          const borderWidth = 2;
+
+          // For grid with variable-width items, simulate the actual flow
+          // to find the widest row and total height
+          let currentRowWidth = 0;
+          let currentRowHeight = 0;
+          let maxRowWidth = 0;
+          let totalHeight = 0;
+          let itemsInCurrentRow = 0;
+
+          children.forEach((child, index) => {
+            // Check if adding this item would exceed max items per row
+            if (itemsInCurrentRow >= maxItemsPerRow && itemsInCurrentRow > 0) {
+              // Finalize current row
+              maxRowWidth = Math.max(maxRowWidth, currentRowWidth - gap); // Remove last gap
+              totalHeight += currentRowHeight + gap;
+
+              // Start new row
+              currentRowWidth = child.width + gap;
+              currentRowHeight = child.height;
+              itemsInCurrentRow = 1;
+            } else {
+              // Add to current row
+              currentRowWidth += child.width + gap;
+              currentRowHeight = Math.max(currentRowHeight, child.height);
+              itemsInCurrentRow++;
+            }
+
+            // If this is the last item, finalize the row
+            if (index === children.length - 1) {
+              maxRowWidth = Math.max(maxRowWidth, currentRowWidth - gap);
+              totalHeight += currentRowHeight;
+            }
+          });
+
+          const calculatedWidth = maxRowWidth + padding * 2 + borderWidth;
+          const calculatedHeight = totalHeight + padding * 2 + borderWidth;
+
+          newFrameSize = { width: calculatedWidth, height: calculatedHeight };
+        } else if (targetLayout === "hstack") {
+          const borderWidth = 2;
+          const totalWidth =
+            children.reduce((sum, child) => sum + child.width, 0) +
+            gap * (children.length - 1) +
+            padding * 2 +
+            borderWidth;
+          const maxHeight =
+            Math.max(...children.map((child) => child.height)) +
+            padding * 2 +
+            borderWidth;
+          newFrameSize = { width: totalWidth, height: maxHeight };
+        } else if (targetLayout === "vstack") {
+          const borderWidth = 2;
+          const maxWidth =
+            Math.max(...children.map((child) => child.width)) +
+            padding * 2 +
+            borderWidth;
+          const totalHeight =
+            children.reduce((sum, child) => sum + child.height, 0) +
+            gap * (children.length - 1) +
+            padding * 2 +
+            borderWidth;
+          newFrameSize = { width: maxWidth, height: totalHeight };
+        }
+      }
+    }
+
+    // Toggle autolayout and update children positions + frame size
+    const updatedObjects = canvas.objects.map((obj) => {
+      if (obj.id === frameId) {
+        return {
+          ...obj,
+          autoLayout: !wasAutolayout,
+          layout: !wasAutolayout && layout === "hstack" ? "grid" : layout,
+          padding: 10,
+          gap: 10,
+          ...newFrameSize,
+        };
+      }
+      if (wasAutolayout && childPositions.has(obj.id)) {
+        const pos = childPositions.get(obj.id)!;
+        return { ...obj, x: pos.x, y: pos.y };
+      }
+      return obj;
+    });
+
+    canvas.setObjects(updatedObjects);
+    selection.setSelectedIds([frameId]);
+    toolbar.setActiveToolbarId(frameId);
+    toolbar.setToolbarSystemActivated(true);
+  };
+
+  const handleReframe = (id: string) => {
+    console.log(`Reframe ${id}`);
+  };
+
   const selectedObjectTypes = canvas.objects
     .filter((obj) => selection.selectedIds.includes(obj.id))
     .map((obj) => obj.type);
@@ -927,9 +1273,9 @@ export function MiniCanvas({ subsectionId }: MiniCanvasProps) {
         onAIPrompt={() => {}}
         onConvertToVideo={() => {}}
         onRerun={() => {}}
-        onReframe={() => {}}
-        onUnframe={() => {}}
-        onToggleAutolayout={() => {}}
+        onReframe={handleReframe}
+        onUnframe={handleUnframe}
+        onToggleAutolayout={handleToggleAutolayout}
         onMore={() => {}}
         onDownload={() => {}}
         onFrameSelection={() => {}}

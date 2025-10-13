@@ -236,6 +236,7 @@ export function createPlaceholder(
         name: "Video",
         width: 280,
         height: 160,
+        duration: 8, // Default duration for placeholder videos
       } as VideoObject;
 
     case "audio":
@@ -262,11 +263,28 @@ export function createPlaceholder(
 }
 
 /**
+ * Sample video URLs - randomly selected
+ */
+const VIDEO_URLS = [
+  "https://cdn.midjourney.com/video/97a950f3-1ba8-4405-a27b-6b3ce19ba579/3.mp4",
+  "https://cdn.midjourney.com/video/32f4b0f1-988c-4699-a94c-d46372789aae/0.mp4",
+  "https://cdn.midjourney.com/video/28a49cfb-9957-4c9a-9e45-d2fd05594939/3.mp4",
+  "https://cdn.midjourney.com/video/ef8ec7cf-6966-4fad-b6cc-8907f589e11a/3.mp4",
+];
+
+/**
+ * Get a random video URL
+ */
+export function getRandomVideoUrl(): string {
+  return VIDEO_URLS[Math.floor(Math.random() * VIDEO_URLS.length)];
+}
+
+/**
  * Sample content URLs for completed artifacts
  */
 const SAMPLE_CONTENT = {
   image: "https://cdn.midjourney.com/c06a44a1-490a-4473-b458-3ff04e60fbba/0_0.png",
-  video: "https://cdn.midjourney.com/video/32f4b0f1-988c-4699-a94c-d46372789aae/0.mp4",
+  video: "", // Not used - videos get random URL in completePlaceholder
   audio: "https://www2.cs.uic.edu/~i101/SoundFiles/BabyElephantWalk60.wav",
   document: "# Sample Document\n\nThis is a generated document with some content.\n\n## Features\n- Point 1\n- Point 2\n- Point 3",
 };
@@ -277,16 +295,31 @@ const SAMPLE_CONTENT = {
 export function completePlaceholder(
   object: ImageObject | VideoObject | AudioObject | DocumentObject
 ): ImageObject | VideoObject | AudioObject | DocumentObject {
-  return {
+  // Get content - for videos, get a NEW random URL each time
+  const content = object.type === 'video' 
+    ? getRandomVideoUrl() 
+    : SAMPLE_CONTENT[object.type];
+
+  const completed = {
     ...object,
     state: "idle",
-    content: SAMPLE_CONTENT[object.type],
+    content,
     metadata: {
       ...object.metadata,
       updatedAt: Date.now(),
       progress: 100,
     },
   };
+
+  // Ensure video objects have a duration
+  if (object.type === 'video') {
+    return {
+      ...completed,
+      duration: (object as VideoObject).duration || 8,
+    } as VideoObject;
+  }
+
+  return completed;
 }
 
 /**

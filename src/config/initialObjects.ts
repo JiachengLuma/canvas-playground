@@ -4,6 +4,7 @@
  */
 
 import { CanvasObject } from "../types";
+import { getRandomVideoUrl } from "../utils/objectFactory";
 
 export const INITIAL_OBJECTS: CanvasObject[] = [
   // Row 1: Human Canvas Natives (Text, Shape, Doodle, Sticky, Link, PDF)
@@ -131,8 +132,7 @@ export const INITIAL_OBJECTS: CanvasObject[] = [
     y: 420,
     width: 280,
     height: 160,
-    content:
-      "https://cdn.midjourney.com/video/32f4b0f1-988c-4699-a94c-d46372789aae/0.mp4",
+    content: getRandomVideoUrl(),
     duration: 5,
     state: "idle",
     metadata: { 
