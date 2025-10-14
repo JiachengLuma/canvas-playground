@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useState } from "react";
 
 interface DragHandleProps {
   x: number; // Screen position
@@ -21,24 +22,52 @@ export function DragHandle({
   onMouseEnter,
   onMouseLeave,
 }: DragHandleProps) {
-  // Adaptive height: max 60px, but if that's >= half the artifact height, use half height
-  const maxHeight = 60;
-  const halfHeight = height / 2;
-  const handleHeight = maxHeight >= halfHeight ? halfHeight : maxHeight;
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Adaptive width: shrink width for small handles
-  // Max 8px, but scale down to 4px when handle is very small
-  const handleWidth = handleHeight < 30 ? 4 : handleHeight < 45 ? 6 : 8;
+  // Width in screen space (constant visual size)
+  // Corner handles appear as 10/zoomLevel in screen pixels, so at 1x zoom they're 10px
+  // We want to match that 10px appearance
+  const handleWidth = 10;
+
+  // Height is 30% of object height, with min/max constraints
+  const minHeight = 24;
+  const maxHeight = 80;
+  const calculatedHeight = height * 0.3;
+  const handleHeight = Math.max(
+    minHeight,
+    Math.min(maxHeight, calculatedHeight)
+  );
+
+  // Border properties in screen space to match corner handles at 1x zoom
+  const handleBorderWidth = 2;
+  const handleBorderRadius = 5;
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    onMouseEnter?.();
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    onMouseLeave?.();
+  };
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      initial={{ opacity: 0, scale: 1 }}
+      animate={{
+        opacity: 1,
+        scale: isHovered ? 1.15 : 1,
+      }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.1, ease: "easeOut" }}
+      transition={{
+        opacity: { duration: 0.1, ease: "easeOut" },
+        scale: { duration: 0.15, ease: "easeOut" },
+      }}
       style={{
         position: "absolute",
-        left: x + width + 5,
+        // Position on the right edge, horizontally centered
+        left: x + width - handleWidth / 2,
         top: y + height / 2 - handleHeight / 2, // Center vertically
         width: handleWidth,
         height: handleHeight,
@@ -46,11 +75,14 @@ export function DragHandle({
         transformOrigin: "center",
         cursor: "grab",
         zIndex: 10001,
+        borderWidth: handleBorderWidth,
+        borderRadius: handleBorderRadius,
+        boxSizing: "border-box",
       }}
       onMouseDown={onDragStart}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      className="bg-blue-500 rounded-full hover:bg-blue-600 active:cursor-grabbing shadow-md"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className="bg-white border-blue-500 border-solid hover:bg-gray-50 active:cursor-grabbing shadow-sm"
     />
   );
 }

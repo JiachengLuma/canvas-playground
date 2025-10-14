@@ -1,0 +1,533 @@
+/**
+ * Unified Toolbar Wrapper
+ * Handles toolbar and tab positioning for single objects, multi-select, and frames
+ */
+
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { ContextToolbar } from "../ContextToolbar";
+import { CanvasObject as CanvasObjectType } from "../../types";
+import { getToolbarGap } from "../../utils/canvasUtils";
+import { shouldShowToolbar } from "../../config/behaviorConfig";
+
+type ToolbarMode = "single" | "multi" | "frame";
+
+interface UnifiedToolbarWrapperProps {
+  mode: ToolbarMode;
+  // For single/frame mode
+  object?: CanvasObjectType;
+  objects?: CanvasObjectType[]; // Needed for autolayout calculations
+  // For multi mode
+  bounds?: { minX: number; minY: number; maxX: number; maxY: number };
+  selectedObjectTypes?: string[];
+  // Common props
+  zoomLevel: number;
+  panOffset: { x: number; y: number };
+  isMultiSelect: boolean;
+  isDragging: boolean;
+  isResizing: boolean;
+  // Toolbar callbacks
+  onToolbarHoverEnter?: () => void;
+  onToolbarHoverLeave?: () => void;
+  onZoomToFit?: (id: string) => void;
+  onColorTagChange?: (id: string) => void;
+  onAIPrompt?: (id: string, prompt: string) => void;
+  onConvertToVideo?: (id: string) => void;
+  onRerun?: (id: string) => void;
+  onReframe?: (id: string) => void;
+  onUnframe?: (id: string) => void;
+  onToggleAutolayout?: (id: string) => void;
+  onMore?: (id: string) => void;
+  onDownload?: (id: string) => void;
+  // Multi-select specific
+  onMultiColorTagChange?: () => void;
+  onMultiAIPrompt?: (prompt: string) => void;
+  onFrameSelection?: () => void;
+  onFrameSelectionWithAutolayout?: () => void;
+  multiColorTag?: string;
+}
+
+// Helper to calculate actual rendered dimensions for autolayout frames
+function getActualDimensions(
+  obj: CanvasObjectType,
+  allObjects: CanvasObjectType[]
+): { width: number; height: number } {
+  if (obj.type !== "frame" || !(obj as any).autoLayout) {
+    return { width: obj.width, height: obj.height };
+  }
+
+  const frameObj = obj as any;
+  const padding = frameObj.padding || 10;
+  const gap = frameObj.gap || 10;
+  const layout = frameObj.layout || "hstack";
+  const children = allObjects.filter((o) => o.parentId === obj.id);
+
+  if (children.length === 0) {
+    return { width: padding * 2, height: padding * 2 };
+  }
+
+  if (layout === "hstack") {
+    const totalWidth =
+      children.reduce((sum, child) => sum + child.width, 0) +
+      gap * (children.length - 1) +
+      padding * 2;
+    const maxHeight =
+      Math.max(...children.map((child) => child.height)) + padding * 2;
+    return { width: totalWidth, height: maxHeight };
+  } else if (layout === "vstack") {
+    const maxWidth =
+      Math.max(...children.map((child) => child.width)) + padding * 2;
+    const totalHeight =
+      children.reduce((sum, child) => sum + child.height, 0) +
+      gap * (children.length - 1) +
+      padding * 2;
+    return { width: maxWidth, height: totalHeight };
+  } else {
+    // grid
+    const frameWidth = obj.width;
+    const borderWidth = 2;
+    const availableWidth = frameWidth - padding * 2 - borderWidth;
+
+    let currentRowWidth = 0;
+    let currentRowHeight = 0;
+    let totalHeight = 0;
+    let rowCount = 0;
+
+    children.forEach((child, index) => {
+      const childWidth = child.width;
+      const childHeight = child.height;
+
+      const widthNeeded =
+        currentRowWidth === 0 ? childWidth : currentRowWidth + gap + childWidth;
+
+      if (widthNeeded > availableWidth && currentRowWidth > 0) {
+        if (rowCount > 0) totalHeight += gap;
+        totalHeight += currentRowHeight;
+        rowCount++;
+
+        currentRowWidth = childWidth;
+        currentRowHeight = childHeight;
+      } else {
+        currentRowWidth = widthNeeded;
+        currentRowHeight = Math.max(currentRowHeight, childHeight);
+      }
+
+      if (index === children.length - 1 && currentRowHeight > 0) {
+        if (rowCount > 0) totalHeight += gap;
+        totalHeight += currentRowHeight;
+        rowCount++;
+      }
+    });
+
+    const calculatedHeight = totalHeight + padding * 2 + borderWidth;
+    return { width: frameWidth, height: calculatedHeight };
+  }
+}
+
+export function UnifiedToolbarWrapper({
+  mode,
+  object,
+  objects = [],
+  bounds,
+  selectedObjectTypes = [],
+  zoomLevel,
+  panOffset,
+  isMultiSelect,
+  isDragging,
+  isResizing,
+  onToolbarHoverEnter,
+  onToolbarHoverLeave,
+  onZoomToFit,
+  onColorTagChange,
+  onAIPrompt,
+  onConvertToVideo,
+  onRerun,
+  onReframe,
+  onUnframe,
+  onToggleAutolayout,
+  onMore,
+  onDownload,
+  onMultiColorTagChange,
+  onMultiAIPrompt,
+  onFrameSelection,
+  onFrameSelectionWithAutolayout,
+  multiColorTag,
+}: UnifiedToolbarWrapperProps) {
+  const [isPromptMode, setIsPromptMode] = useState(false);
+  const [promptText, setPromptText] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+
+  // Handle Tab key to activate prompt mode
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Tab" && !isPromptMode) {
+        e.preventDefault();
+        setIsPromptMode(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [isPromptMode]);
+
+  // Focus input when entering prompt mode
+  useEffect(() => {
+    if (isPromptMode && inputRef.current) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          inputRef.current?.focus();
+        });
+      });
+    }
+  }, [isPromptMode]);
+
+  const handlePromptSubmit = () => {
+    if (!promptText.trim()) return;
+
+    if (mode === "multi" && onMultiAIPrompt) {
+      onMultiAIPrompt(promptText);
+    } else if (mode === "single" && object && onAIPrompt) {
+      onAIPrompt(object.id, promptText);
+    }
+
+    setPromptText("");
+    setIsPromptMode(false);
+  };
+
+  const handlePromptKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handlePromptSubmit();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setIsPromptMode(false);
+      setPromptText("");
+    }
+  };
+
+  // Early returns for invalid states
+  if (mode === "single" && !object) return null;
+  if (mode === "single" && isMultiSelect) return null; // Don't show single toolbar in multi-select mode
+  if (mode === "single" && object && !shouldShowToolbar(object.type as any))
+    return null; // Check if this object type should show toolbar
+  if (mode === "multi" && !bounds) return null;
+  if (mode === "multi" && !isMultiSelect) return null; // Don't show multi toolbar in single-select mode
+  if (isDragging || isResizing) return null;
+  if (mode === "single" && object?.state === "generating") return null;
+  // Don't show toolbar during agent frame creation
+  if (mode === "single" && object?.type === "frame") {
+    const frameObj = object as any;
+    if (frameObj.isAgentCreating) return null;
+  }
+
+  // Calculate dimensions and positions based on mode
+  let objectTypes: string[];
+  let colorTag: string | undefined;
+  let toolbarLeftScreen: number, toolbarTopScreen: number;
+  let tabButtonLeftScreen: number, tabButtonTopScreen: number;
+  let heightInScreenPx: number, widthInScreenPx: number;
+
+  if (mode === "multi" && bounds) {
+    // Multi-select mode: bounds are already in screen coordinates
+    const width = bounds.maxX - bounds.minX;
+    const height = bounds.maxY - bounds.minY;
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerY = (bounds.minY + bounds.maxY) / 2;
+
+    objectTypes = selectedObjectTypes;
+    colorTag = multiColorTag;
+
+    // Calculate toolbar gap in screen pixels
+    const toolbarGapInCanvasPx = getToolbarGap(zoomLevel);
+    const toolbarGapInScreenPx = toolbarGapInCanvasPx * zoomLevel;
+
+    // Position toolbar to the LEFT, centered vertically (already screen coordinates)
+    toolbarLeftScreen = bounds.minX - toolbarGapInScreenPx;
+    toolbarTopScreen = centerY;
+
+    // Position Tab button BELOW, centered horizontally (already screen coordinates)
+    tabButtonLeftScreen = centerX;
+    tabButtonTopScreen = bounds.maxY + toolbarGapInScreenPx;
+
+    // Dimensions for compact mode check (already in screen space)
+    heightInScreenPx = height;
+    widthInScreenPx = width;
+  } else if (mode === "single" && object) {
+    // Single/frame mode: object coordinates are in canvas space, need conversion
+    const actualDims = getActualDimensions(object, objects);
+    const width = actualDims.width;
+    const height = actualDims.height;
+    const centerX = object.x + width / 2;
+    const centerY = object.y + height / 2;
+
+    objectTypes = [object.type];
+    colorTag = object.colorTag || "none";
+
+    // Calculate toolbar gap in canvas pixels
+    const toolbarGapInCanvasPx = getToolbarGap(zoomLevel);
+
+    // Position toolbar to the LEFT, centered vertically (convert canvas to screen)
+    const toolbarLeftCanvas = object.x - toolbarGapInCanvasPx;
+    const toolbarTopCanvas = centerY;
+    toolbarLeftScreen = toolbarLeftCanvas * zoomLevel + panOffset.x;
+    toolbarTopScreen = toolbarTopCanvas * zoomLevel + panOffset.y;
+
+    // Position Tab button BELOW, centered horizontally (convert canvas to screen)
+    const tabButtonLeftCanvas = centerX;
+    const tabButtonTopCanvas = object.y + height + toolbarGapInCanvasPx;
+    tabButtonLeftScreen = tabButtonLeftCanvas * zoomLevel + panOffset.x;
+    tabButtonTopScreen = tabButtonTopCanvas * zoomLevel + panOffset.y;
+
+    // Dimensions for compact mode check (convert to screen space)
+    heightInScreenPx = height * zoomLevel;
+    widthInScreenPx = width * zoomLevel;
+  } else {
+    return null;
+  }
+
+  // Determine compact mode based on screen size
+  const toolbarSizePx = 48;
+  const shouldShowCompact =
+    heightInScreenPx < toolbarSizePx * 1.2 ||
+    widthInScreenPx < toolbarSizePx * 1.2;
+
+  return (
+    <AnimatePresence>
+      {/* Main toolbar - positioned LEFT of the object */}
+      {!isPromptMode && (
+        <motion.div
+          key="toolbar"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.1, ease: "easeOut" }}
+          style={{
+            position: "absolute",
+            left: toolbarLeftScreen,
+            top: toolbarTopScreen,
+            pointerEvents: "none",
+            zIndex: 10000,
+          }}
+          onMouseEnter={onToolbarHoverEnter}
+          onMouseLeave={onToolbarHoverLeave}
+        >
+          <div
+            ref={toolbarRef}
+            style={{
+              pointerEvents: "auto",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              transform: "translate(-100%, -50%)",
+            }}
+          >
+            <ContextToolbar
+              objectTypes={objectTypes as any}
+              isMultiSelect={mode === "multi"}
+              objectWidth={widthInScreenPx}
+              activeObject={mode === "single" ? object : undefined}
+              onZoomToFit={
+                mode === "single" && object
+                  ? () => onZoomToFit?.(object.id)
+                  : undefined
+              }
+              colorTag={colorTag as any}
+              onColorTagChange={
+                mode === "multi"
+                  ? onMultiColorTagChange
+                  : mode === "single" && object
+                  ? () => onColorTagChange?.(object.id)
+                  : undefined
+              }
+              onAIPrompt={
+                mode === "single" && object
+                  ? (prompt) => onAIPrompt?.(object.id, prompt)
+                  : undefined
+              }
+              onConvertToVideo={
+                mode === "single" && object
+                  ? () => onConvertToVideo?.(object.id)
+                  : undefined
+              }
+              onRerun={
+                mode === "single" && object && object.type !== "frame"
+                  ? () => onRerun?.(object.id)
+                  : undefined
+              }
+              onReframe={
+                mode === "multi"
+                  ? onFrameSelection
+                  : mode === "single" && object
+                  ? () =>
+                      object.type === "frame"
+                        ? onUnframe?.(object.id)
+                        : onReframe?.(object.id)
+                  : undefined
+              }
+              onToggleAutolayout={
+                mode === "single" && object && object.type === "frame"
+                  ? () => onToggleAutolayout?.(object.id)
+                  : undefined
+              }
+              onFrameWithAutolayout={
+                mode === "multi" ? onFrameSelectionWithAutolayout : undefined
+              }
+              onMore={
+                mode === "single" && object
+                  ? () => onMore?.(object.id)
+                  : undefined
+              }
+              onDownload={
+                mode === "single" && object
+                  ? () => onDownload?.(object.id)
+                  : undefined
+              }
+              hideTabButton={true}
+              isVertical={true}
+              forceCompact={shouldShowCompact}
+            />
+          </div>
+        </motion.div>
+      )}
+
+      {/* Tab button / Input field - positioned BELOW the object */}
+      <motion.div
+        key="tab-button"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.1, ease: "easeOut" }}
+        style={{
+          position: "absolute",
+          left: tabButtonLeftScreen,
+          top: tabButtonTopScreen,
+          transform: "translateX(-50%)",
+          pointerEvents: "none",
+          zIndex: 10000,
+        }}
+      >
+        <div
+          style={{
+            pointerEvents: "auto",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          {!isPromptMode ? (
+            // Tab button - scale animation between compact and full
+            <motion.button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPromptMode(true);
+              }}
+              animate={{
+                scale: shouldShowCompact ? 0.8 : 1,
+                height: shouldShowCompact ? 24 : 30,
+              }}
+              transition={{
+                scale: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+                height: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+              }}
+              className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors px-2.5 flex items-center justify-center gap-1 overflow-hidden"
+              style={{
+                fontFamily: "Graphik, sans-serif",
+              }}
+            >
+              <AnimatePresence mode="wait">
+                {shouldShowCompact ? (
+                  // Compact: Just "Tab" text
+                  <motion.span
+                    key="compact"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="text-[10px] leading-[10px] whitespace-nowrap font-medium"
+                    style={{
+                      color: "rgba(0, 0, 0, 0.6)",
+                    }}
+                  >
+                    Tab
+                  </motion.span>
+                ) : (
+                  // Full: "Type..." + "Tab" badge
+                  <motion.div
+                    key="full"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex items-center gap-1"
+                  >
+                    <span
+                      className="text-[11px] leading-[11px] font-medium"
+                      style={{
+                        color: "rgba(0, 0, 0, 0.7)",
+                      }}
+                    >
+                      Type...
+                    </span>
+                    <div
+                      className="border border-black/[0.1] border-solid rounded-[4px] px-[8px] py-[3px]"
+                      style={{
+                        height: "16px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <span
+                        className="text-[11px] leading-[11px] whitespace-nowrap font-medium"
+                        style={{
+                          color: "rgba(0, 0, 0, 0.6)",
+                        }}
+                      >
+                        Tab
+                      </span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.button>
+          ) : (
+            // Expanded input field
+            <div
+              className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] px-3 py-1.5 flex items-center gap-2"
+              style={{
+                fontFamily: "Graphik, sans-serif",
+                minWidth: "280px",
+              }}
+            >
+              <input
+                ref={inputRef}
+                type="text"
+                value={promptText}
+                onChange={(e) => setPromptText(e.target.value)}
+                onKeyDown={handlePromptKeyDown}
+                placeholder="Type to edit..."
+                className="flex-1 bg-transparent border-none outline-none text-sm"
+                style={{
+                  color: "rgba(0, 0, 0, 0.9)",
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePromptSubmit();
+                }}
+                disabled={!promptText.trim()}
+                className="flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 transition-colors px-2 py-1 disabled:opacity-30 disabled:cursor-not-allowed text-xs"
+              >
+                ↵
+              </button>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}

@@ -153,6 +153,12 @@ export function CanvasObject({
       onSelect(object.id, e.shiftKey || e.metaKey);
     }
 
+    // Activate toolbar on click (for single selection only)
+    if (!e.shiftKey && !e.metaKey) {
+      onSetActiveToolbar(object.id);
+      onActivateToolbarSystem();
+    }
+
     // Prepare for drag but don't start yet - wait for mouse movement
     setIsDragging(true);
     hasMovedDuringDrag.current = false;
@@ -236,35 +242,7 @@ export function CanvasObject({
       });
     }
 
-    // Don't show toolbar while selecting
-    if (isSelecting) {
-      return;
-    }
-
-    // If there's a selection and this object is NOT selected, don't show toolbar on hover
-    if (hasSelection && !isSelected) {
-      return;
-    }
-
-    // If this object is selected, immediately show its toolbar
-    if (isSelected) {
-      onSetActiveToolbar(object.id);
-    } else if (isPartOfMultiSelect) {
-      // If part of multi-select, don't show individual toolbar
-      return;
-    } else if (zoomLevel < 0.2) {
-      // Below 20% zoom, don't show toolbar on hover - only on click/select
-      return;
-    } else if (toolbarSystemActivated) {
-      // If toolbar system is activated, show immediately (no delay)
-      onSetActiveToolbar(object.id);
-    } else {
-      // For non-selected objects when system isn't activated, wait 1 second
-      hoverTimeoutRef.current = setTimeout(() => {
-        onSetActiveToolbar(object.id);
-        onActivateToolbarSystem(); // Activate the system once first toolbar appears
-      }, 1000);
-    }
+    // Toolbar activation removed - toolbar only shows on click/selection
   };
 
   const handleMouseLeave = () => {
@@ -628,7 +606,7 @@ export function CanvasObject({
             )}
 
             {/* Content section - iMessage style */}
-            <div className="flex-1 p-3 flex flex-col justify-center bg-[#F6F6F6]">
+            <div className="flex-1 p-3 flex flex-col justify-center bg-white">
               {/* Domain/URL - small gray text at top */}
               <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1 truncate">
                 {getDomain(linkObj.url)}
@@ -808,10 +786,20 @@ export function CanvasObject({
 
   // Constant viewport sizes (inverse of zoom to maintain screen size)
   const viewportBorderWidth = 2 / zoomLevel;
-  const viewportHandleSize = 12 / zoomLevel;
+  const viewportHandleSize = 10 / zoomLevel;
+  const viewportHandleBorderWidth = 2 / zoomLevel;
   const viewportColorTagSize = 16 / zoomLevel;
   const viewportColorTagOffset = -6 / zoomLevel;
   const viewportBorderRadius = 5 / zoomLevel;
+
+  // Calculate actual screen size of the object (object size * zoom)
+  const screenWidth = object.width * zoomLevel;
+  const screenHeight = object.height * zoomLevel;
+  const smallerScreenDimension = Math.min(screenWidth, screenHeight);
+
+  // Show all 4 corner handles when object is large enough on screen (>100px in smaller dimension)
+  // This way handles appear/disappear based on visual size, not just zoom level
+  const showAllHandles = smallerScreenDimension > 100;
 
   // Dynamic toolbar gap: closer when zoomed out (2-6px range)
   const toolbarGap = 2 + 4 * Math.min(1, zoomLevel);
@@ -947,16 +935,16 @@ export function CanvasObject({
             zIndex: 10, // Above content to be visible
           }}
         >
-          {/* Corner handles - progressive visibility based on zoom */}
+          {/* Corner handles - progressive visibility based on screen size */}
           {onResizeStart && (
             <>
-              {/* Top-left - only show above 20% zoom */}
-              {zoomLevel > 0.2 && (
+              {/* Top-left - only show when object is large enough on screen */}
+              {showAllHandles && (
                 <motion.div
-                  className="absolute bg-blue-500 cursor-nwse-resize hover:bg-blue-600"
+                  className="absolute bg-white border-blue-500 border-solid cursor-nwse-resize hover:bg-gray-50"
                   initial={false}
                   animate={{
-                    borderRadius: isShiftPressed ? "20%" : "50%",
+                    borderRadius: isShiftPressed ? "50%" : "20%",
                   }}
                   transition={{
                     duration: 0.15,
@@ -967,7 +955,9 @@ export function CanvasObject({
                     left: -viewportHandleSize / 2,
                     width: viewportHandleSize,
                     height: viewportHandleSize,
+                    borderWidth: viewportHandleBorderWidth,
                     pointerEvents: "auto",
+                    boxSizing: "border-box",
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -978,10 +968,10 @@ export function CanvasObject({
               )}
               {/* Top-right - ALWAYS show (even at small zoom) */}
               <motion.div
-                className="absolute bg-blue-500 cursor-nesw-resize hover:bg-blue-600"
+                className="absolute bg-white border-blue-500 border-solid cursor-nesw-resize hover:bg-gray-50"
                 initial={false}
                 animate={{
-                  borderRadius: isShiftPressed ? "20%" : "50%",
+                  borderRadius: isShiftPressed ? "50%" : "20%",
                 }}
                 transition={{
                   duration: 0.15,
@@ -992,7 +982,9 @@ export function CanvasObject({
                   right: -viewportHandleSize / 2,
                   width: viewportHandleSize,
                   height: viewportHandleSize,
+                  borderWidth: viewportHandleBorderWidth,
                   pointerEvents: "auto",
+                  boxSizing: "border-box",
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation();
@@ -1000,13 +992,13 @@ export function CanvasObject({
                   onResizeStart("top-right", e);
                 }}
               />
-              {/* Bottom-left - only show above 20% zoom */}
-              {zoomLevel > 0.2 && (
+              {/* Bottom-left - only show when object is large enough on screen */}
+              {showAllHandles && (
                 <motion.div
-                  className="absolute bg-blue-500 cursor-nesw-resize hover:bg-blue-600"
+                  className="absolute bg-white border-blue-500 border-solid cursor-nesw-resize hover:bg-gray-50"
                   initial={false}
                   animate={{
-                    borderRadius: isShiftPressed ? "20%" : "50%",
+                    borderRadius: isShiftPressed ? "50%" : "20%",
                   }}
                   transition={{
                     duration: 0.15,
@@ -1017,7 +1009,9 @@ export function CanvasObject({
                     left: -viewportHandleSize / 2,
                     width: viewportHandleSize,
                     height: viewportHandleSize,
+                    borderWidth: viewportHandleBorderWidth,
                     pointerEvents: "auto",
+                    boxSizing: "border-box",
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -1026,13 +1020,13 @@ export function CanvasObject({
                   }}
                 />
               )}
-              {/* Bottom-right - only show above 20% zoom */}
-              {zoomLevel > 0.2 && (
+              {/* Bottom-right - only show when object is large enough on screen */}
+              {showAllHandles && (
                 <motion.div
-                  className="absolute bg-blue-500 cursor-nwse-resize hover:bg-blue-600"
+                  className="absolute bg-white border-blue-500 border-solid cursor-nwse-resize hover:bg-gray-50"
                   initial={false}
                   animate={{
-                    borderRadius: isShiftPressed ? "20%" : "50%",
+                    borderRadius: isShiftPressed ? "50%" : "20%",
                   }}
                   transition={{
                     duration: 0.15,
@@ -1043,7 +1037,9 @@ export function CanvasObject({
                     right: -viewportHandleSize / 2,
                     width: viewportHandleSize,
                     height: viewportHandleSize,
+                    borderWidth: viewportHandleBorderWidth,
                     pointerEvents: "auto",
+                    boxSizing: "border-box",
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -1129,15 +1125,13 @@ export function CanvasObject({
             style={{
               position: "absolute",
               left: 0,
-              right: 0,
-              top: -25 / zoomLevel,
+              top: -(8 / zoomLevel + 12 / zoomLevel), // Gap (8px) + text height (12px)
               pointerEvents: "auto",
               zIndex: 1000,
               fontSize: `${12 / zoomLevel}px`,
               paddingLeft: `${4 / zoomLevel}px`,
-              paddingRight: `${4 / zoomLevel}px`,
             }}
-            className="flex items-center justify-between gap-4 text-muted-foreground cursor-move"
+            className="text-muted-foreground cursor-move"
             onMouseDown={handleMouseDown}
           >
             <span
@@ -1147,10 +1141,41 @@ export function CanvasObject({
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 minWidth: 0,
+                maxWidth: `${object.width - 8 / zoomLevel}px`,
+                display: "inline-block",
               }}
             >
               {object.type === "sticky" ? "Note" : object.type}
             </span>
+          </motion.div>
+        )}
+
+      {/* Metadata header - CREATOR/DIMENSIONS (right side) also shown above object */}
+      {isSelected &&
+        !isPartOfMultiSelect &&
+        !isDraggingAny &&
+        object.type !== "frame" &&
+        object.state !== "generating" &&
+        !object.parentId &&
+        zoomLevel > 0.3 &&
+        shouldShowMetadata(object.type) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1, ease: "easeOut" }}
+            style={{
+              position: "absolute",
+              right: 0,
+              top: -(8 / zoomLevel + 12 / zoomLevel), // Gap (8px) + text height (12px)
+              pointerEvents: "auto",
+              zIndex: 1000,
+              fontSize: `${12 / zoomLevel}px`,
+              paddingRight: `${4 / zoomLevel}px`,
+            }}
+            className="text-muted-foreground cursor-move"
+            onMouseDown={handleMouseDown}
+          >
             <span
               style={{
                 overflow: "hidden",
@@ -1176,7 +1201,7 @@ export function CanvasObject({
           </motion.div>
         )}
 
-      {/* Generating state header - shown ALWAYS when generating (not just when selected, but not for objects inside frames) */}
+      {/* Generating state header - TYPE (left side) shown above object */}
       {object.state === "generating" &&
         object.type !== "frame" &&
         !object.parentId &&
@@ -1189,15 +1214,13 @@ export function CanvasObject({
             style={{
               position: "absolute",
               left: 0,
-              right: 0,
-              top: -25 / zoomLevel,
+              top: -(8 / zoomLevel + 12 / zoomLevel), // Gap (8px) + text height (12px)
               pointerEvents: "auto",
               zIndex: 1000,
               fontSize: `${12 / zoomLevel}px`,
               paddingLeft: `${4 / zoomLevel}px`,
-              paddingRight: `${4 / zoomLevel}px`,
             }}
-            className="flex items-center justify-between gap-4 text-muted-foreground cursor-move"
+            className="text-muted-foreground cursor-move"
             onMouseDown={handleMouseDown}
           >
             <span
@@ -1206,10 +1229,38 @@ export function CanvasObject({
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 minWidth: 0,
+                maxWidth: `${object.width - 8 / zoomLevel}px`,
+                display: "inline-block",
               }}
             >
               Generating
             </span>
+          </motion.div>
+        )}
+
+      {/* Generating state header - CREATOR (right side) also shown above object */}
+      {object.state === "generating" &&
+        object.type !== "frame" &&
+        !object.parentId &&
+        zoomLevel > 0.3 &&
+        shouldShowMetadata(object.type) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1, ease: "easeOut" }}
+            style={{
+              position: "absolute",
+              right: 0,
+              top: -(8 / zoomLevel + 12 / zoomLevel), // Gap (8px) + text height (12px)
+              pointerEvents: "auto",
+              zIndex: 1000,
+              fontSize: `${12 / zoomLevel}px`,
+              paddingRight: `${4 / zoomLevel}px`,
+            }}
+            className="text-muted-foreground cursor-move"
+            onMouseDown={handleMouseDown}
+          >
             <span
               style={{
                 overflow: "hidden",

@@ -7,11 +7,10 @@ import { AnimatePresence } from "motion/react";
 import { CanvasObject as CanvasObjectType, ColorTag } from "../../types";
 import { ObjectsLayer } from "./ObjectsLayer";
 import { SelectionBounds } from "../SelectionBounds";
-import { MultiSelectToolbar } from "../MultiSelectToolbar";
 import { SelectionBox } from "../SelectionBox";
 import { FrameDrawingBox } from "../FrameDrawingBox";
 import { DragHandle } from "../DragHandle";
-import { SingleObjectToolbarWrapper } from "./SingleObjectToolbarWrapper";
+import { UnifiedToolbarWrapper } from "./UnifiedToolbarWrapper";
 import { shouldShowDragHandle } from "../../config/behaviorConfig";
 
 export interface CanvasLayerProps {
@@ -252,21 +251,25 @@ export function CanvasLayer({
         </AnimatePresence>
 
         {/* Multi-Select Toolbar */}
-        <AnimatePresence>
-          {isMultiSelect && !isDraggingObject && !isResizing && (
-            <MultiSelectToolbar
-              selectedCount={selectedIds.length}
-              objectTypes={selectedObjectTypes}
-              zoomLevel={zoomLevel}
-              bounds={selectionBounds}
-              colorTag={multiSelectColorTag}
-              onColorTagChange={onMultiSelectColorTagChange}
-              onAIPrompt={(prompt) => console.log("Multi AI prompt:", prompt)}
-              onReframe={onFrameSelection}
-              onFrameWithAutolayout={onFrameSelectionWithAutolayout}
-            />
-          )}
-        </AnimatePresence>
+        {isMultiSelect && (
+          <UnifiedToolbarWrapper
+            mode="multi"
+            bounds={selectionBounds}
+            selectedObjectTypes={selectedObjectTypes}
+            zoomLevel={zoomLevel}
+            panOffset={panOffset}
+            isMultiSelect={isMultiSelect}
+            isDragging={isDraggingObject}
+            isResizing={isResizing}
+            multiColorTag={multiSelectColorTag}
+            onMultiColorTagChange={onMultiSelectColorTagChange}
+            onMultiAIPrompt={(prompt) =>
+              console.log("Multi AI prompt:", prompt)
+            }
+            onFrameSelection={onFrameSelection}
+            onFrameSelectionWithAutolayout={onFrameSelectionWithAutolayout}
+          />
+        )}
 
         {/* Selection Box */}
         <AnimatePresence>
@@ -324,11 +327,12 @@ export function CanvasLayer({
       </AnimatePresence>
 
       {/* Single Object Toolbar - rendered outside transform wrapper */}
-      <SingleObjectToolbarWrapper
-        activeObject={activeObject}
+      <UnifiedToolbarWrapper
+        mode="single"
+        object={activeObject || undefined}
         objects={objects}
         isMultiSelect={isMultiSelect}
-        isDraggingObject={isDraggingObject}
+        isDragging={isDraggingObject}
         isResizing={isResizing}
         zoomLevel={zoomLevel}
         panOffset={panOffset}

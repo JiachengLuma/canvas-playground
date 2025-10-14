@@ -94,11 +94,12 @@ export function getObjectsInBox(
 
 /**
  * Calculate toolbar gap based on zoom level
- * Returns the gap (in pixels) between object and toolbar
+ * Returns the gap (in canvas pixels) between object and toolbar
+ * Slightly less than drag handles to compensate for shadow/visual weight
  */
 export function getToolbarGap(zoomLevel: number): number {
-  // 8px at normal/high zoom, scales down to 4px minimum when zoomed out
-  return 4 + 4 * Math.min(1, zoomLevel);
+  // 8px in canvas space (slightly closer than handles to account for shadow)
+  return 8 / zoomLevel;
 }
 
 /**

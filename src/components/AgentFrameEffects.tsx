@@ -138,6 +138,8 @@ export function AgentFrameHeader({
           fontFamily: "Graphik, sans-serif",
           fontWeight: isCreating ? 500 : 400,
           zIndex: 1,
+          minWidth: 0,
+          flexShrink: 1,
         }}
       >
         {frameName}

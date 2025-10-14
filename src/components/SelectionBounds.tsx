@@ -45,7 +45,8 @@ export function SelectionBounds({
   const width = maxX - minX;
   const height = maxY - minY;
   const viewportBorderWidth = 2 / zoomLevel;
-  const viewportHandleSize = 12 / zoomLevel;
+  const viewportHandleSize = 10 / zoomLevel;
+  const viewportHandleBorderWidth = 2 / zoomLevel;
   const viewportBorderRadius = 5 / zoomLevel;
 
   return (
@@ -72,9 +73,10 @@ export function SelectionBounds({
         <>
           {/* Top-left */}
           <motion.div
-            className="absolute bg-blue-500 cursor-nwse-resize hover:bg-blue-600"
+            className="absolute bg-white border-blue-500 border-solid cursor-nwse-resize hover:bg-gray-50"
+            initial={false}
             animate={{
-              borderRadius: isShiftPressed ? "20%" : "50%",
+              borderRadius: isShiftPressed ? "50%" : "20%",
             }}
             transition={{
               duration: 0.15,
@@ -85,7 +87,9 @@ export function SelectionBounds({
               left: -viewportHandleSize / 2,
               width: viewportHandleSize,
               height: viewportHandleSize,
+              borderWidth: viewportHandleBorderWidth,
               pointerEvents: "auto",
+              boxSizing: "border-box",
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -95,9 +99,10 @@ export function SelectionBounds({
           />
           {/* Top-right */}
           <motion.div
-            className="absolute bg-blue-500 cursor-nesw-resize hover:bg-blue-600"
+            className="absolute bg-white border-blue-500 border-solid cursor-nesw-resize hover:bg-gray-50"
+            initial={false}
             animate={{
-              borderRadius: isShiftPressed ? "20%" : "50%",
+              borderRadius: isShiftPressed ? "50%" : "20%",
             }}
             transition={{
               duration: 0.15,
@@ -108,7 +113,9 @@ export function SelectionBounds({
               right: -viewportHandleSize / 2,
               width: viewportHandleSize,
               height: viewportHandleSize,
+              borderWidth: viewportHandleBorderWidth,
               pointerEvents: "auto",
+              boxSizing: "border-box",
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -118,9 +125,10 @@ export function SelectionBounds({
           />
           {/* Bottom-left */}
           <motion.div
-            className="absolute bg-blue-500 cursor-nesw-resize hover:bg-blue-600"
+            className="absolute bg-white border-blue-500 border-solid cursor-nesw-resize hover:bg-gray-50"
+            initial={false}
             animate={{
-              borderRadius: isShiftPressed ? "20%" : "50%",
+              borderRadius: isShiftPressed ? "50%" : "20%",
             }}
             transition={{
               duration: 0.15,
@@ -131,7 +139,9 @@ export function SelectionBounds({
               left: -viewportHandleSize / 2,
               width: viewportHandleSize,
               height: viewportHandleSize,
+              borderWidth: viewportHandleBorderWidth,
               pointerEvents: "auto",
+              boxSizing: "border-box",
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -141,9 +151,10 @@ export function SelectionBounds({
           />
           {/* Bottom-right */}
           <motion.div
-            className="absolute bg-blue-500 cursor-nwse-resize hover:bg-blue-600"
+            className="absolute bg-white border-blue-500 border-solid cursor-nwse-resize hover:bg-gray-50"
+            initial={false}
             animate={{
-              borderRadius: isShiftPressed ? "20%" : "50%",
+              borderRadius: isShiftPressed ? "50%" : "20%",
             }}
             transition={{
               duration: 0.15,
@@ -154,7 +165,9 @@ export function SelectionBounds({
               right: -viewportHandleSize / 2,
               width: viewportHandleSize,
               height: viewportHandleSize,
+              borderWidth: viewportHandleBorderWidth,
               pointerEvents: "auto",
+              boxSizing: "border-box",
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
