@@ -490,19 +490,25 @@ export function UnifiedToolbarWrapper({
           {!isPromptMode ? (
             // Enter button - "Type..." with icon, or just icon when compact
             shouldShowCompact ? (
-              // Compact mode: just icon in circle (same size as toolbar ellipsis)
+              // Compact mode: just icon in circle (smaller 20px height to match toolbar)
               <motion.button
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   setIsPromptMode(true);
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ opacity: { duration: 0.1 } }}
-                className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors w-6 h-6 flex items-center justify-center"
+                className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors w-5 h-5 flex items-center justify-center"
                 style={{
                   fontFamily: "Graphik, sans-serif",
+                  cursor: "pointer",
                 }}
               >
                 <CornerDownLeft
@@ -514,36 +520,35 @@ export function UnifiedToolbarWrapper({
                 />
               </motion.button>
             ) : (
-              // Full mode: text + icon
+              // Full mode: text only (no icon)
               <motion.button
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   setIsPromptMode(true);
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ opacity: { duration: 0.1 } }}
-                className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors px-3 h-[30px] flex items-center justify-center gap-1.5"
+                className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors px-4 h-10 flex items-center justify-center"
                 style={{
                   fontFamily: "Graphik, sans-serif",
+                  cursor: "pointer",
                 }}
               >
                 <span
-                  className="text-[11px] leading-[11px] font-medium whitespace-nowrap"
+                  className="text-[13px] leading-[13px] font-medium whitespace-nowrap"
                   style={{
                     color: "rgba(0, 0, 0, 0.7)",
                   }}
                 >
                   Type...
                 </span>
-                <CornerDownLeft
-                  className="w-3 h-3"
-                  strokeWidth={2}
-                  style={{
-                    color: "rgba(0, 0, 0, 0.6)",
-                  }}
-                />
               </motion.button>
             )
           ) : (
@@ -562,10 +567,10 @@ export function UnifiedToolbarWrapper({
                 scale: { duration: 0.25, ease: [0.4, 0, 0.2, 1] },
                 opacity: { duration: 0.2 },
               }}
-              className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] px-3 py-1.5 flex items-center gap-2"
+              className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] px-4 py-2 flex items-center gap-2 h-10"
               style={{
                 fontFamily: "Graphik, sans-serif",
-                width: "220px",
+                width: "240px",
               }}
             >
               <input
@@ -575,7 +580,7 @@ export function UnifiedToolbarWrapper({
                 onChange={(e) => setPromptText(e.target.value)}
                 onKeyDown={handlePromptKeyDown}
                 placeholder="Type to direct next move..."
-                className="flex-1 bg-transparent border-none outline-none text-sm"
+                className="flex-1 bg-transparent border-none outline-none text-[15px]"
                 style={{
                   color: "rgba(0, 0, 0, 0.9)",
                 }}
@@ -588,9 +593,9 @@ export function UnifiedToolbarWrapper({
                   handlePromptSubmit();
                 }}
                 disabled={!promptText.trim()}
-                className="flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 transition-colors w-6 h-6 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 transition-colors w-7 h-7 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <ArrowUp className="w-4 h-4" strokeWidth={1.5} />
+                <ArrowUp className="w-4 h-4" strokeWidth={2} />
               </button>
             </motion.div>
           )}

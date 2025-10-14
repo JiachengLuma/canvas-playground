@@ -141,7 +141,7 @@ export function ContextToolbar({
       >
         {!isPromptMode &&
           (shouldShowCompact ? (
-            // Show only ellipsis when fully compact
+            // Show only ellipsis when fully compact (smaller 20px height)
             <motion.button
               onMouseDown={(e) => {
                 e.stopPropagation();
@@ -152,7 +152,7 @@ export function ContextToolbar({
               onClick={(e) => {
                 e.stopPropagation();
               }}
-              className="bg-white/95 backdrop-blur-md text-gray-900 rounded-full shadow-lg border border-black/5 hover:bg-gray-50 transition-colors flex items-center justify-center w-6 h-6 flex-shrink-0"
+              className="bg-white/95 backdrop-blur-md text-gray-900 rounded-full shadow-lg border border-black/5 hover:bg-gray-50 transition-colors flex items-center justify-center w-5 h-5 flex-shrink-0"
               style={{ cursor: "pointer" }}
             >
               <MoreHorizontal
@@ -194,7 +194,7 @@ export function ContextToolbar({
               <div
                 className={`bg-white/95 backdrop-blur-md rounded-full shadow-lg border border-black/5 flex items-center ${
                   isVertical ? "flex-col" : ""
-                } gap-0.5 px-1 py-1 flex-shrink-0`}
+                } gap-0.5 px-1.5 py-1.5 flex-shrink-0`}
               >
                 {/* Rerun */}
                 {onRerun && (
@@ -205,10 +205,10 @@ export function ContextToolbar({
                           e.stopPropagation();
                           onRerun();
                         }}
-                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1"
+                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
                       >
                         <RotateCcw
-                          className="w-3 h-3 text-gray-700"
+                          className="w-4 h-4 text-gray-700"
                           strokeWidth={2}
                         />
                       </button>
@@ -231,10 +231,10 @@ export function ContextToolbar({
                           e.stopPropagation();
                           onConvertToVideo();
                         }}
-                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1"
+                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
                       >
                         <Video
-                          className="w-3 h-3 text-gray-700"
+                          className="w-4 h-4 text-gray-700"
                           strokeWidth={2}
                         />
                       </button>
@@ -258,21 +258,21 @@ export function ContextToolbar({
                           e.preventDefault();
                           onReframe();
                         }}
-                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1"
+                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
                       >
                         {isFrame ? (
                           <Ungroup
-                            className="w-3 h-3 text-gray-700"
+                            className="w-4 h-4 text-gray-700"
                             strokeWidth={2}
                           />
                         ) : isMultiSelect ? (
                           <Square
-                            className="w-3 h-3 text-gray-700"
+                            className="w-4 h-4 text-gray-700"
                             strokeWidth={2}
                           />
                         ) : (
                           <Maximize2
-                            className="w-3 h-3 text-gray-700"
+                            className="w-4 h-4 text-gray-700"
                             strokeWidth={2}
                           />
                         )}
@@ -303,14 +303,14 @@ export function ContextToolbar({
                           e.preventDefault();
                           onToggleAutolayout();
                         }}
-                        className={`flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1 ${
+                        className={`flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5 ${
                           activeObject && (activeObject as any).autoLayout
                             ? "bg-blue-50"
                             : ""
                         }`}
                       >
                         <LayoutGrid
-                          className={`w-3.5 h-3.5 ${
+                          className={`w-4 h-4 ${
                             activeObject && (activeObject as any).autoLayout
                               ? "text-blue-600"
                               : "text-gray-700"
@@ -338,10 +338,10 @@ export function ContextToolbar({
                           e.preventDefault();
                           onFrameWithAutolayout();
                         }}
-                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1"
+                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
                       >
                         <LayoutGrid
-                          className="w-3 h-3 text-gray-700"
+                          className="w-4 h-4 text-gray-700"
                           strokeWidth={2}
                         />
                       </button>
@@ -364,10 +364,10 @@ export function ContextToolbar({
                           e.stopPropagation();
                           onDownload();
                         }}
-                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1"
+                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
                       >
                         <Download
-                          className="w-3 h-3 text-gray-700"
+                          className="w-4 h-4 text-gray-700"
                           strokeWidth={2}
                         />
                       </button>
@@ -390,10 +390,10 @@ export function ContextToolbar({
                           e.stopPropagation();
                           onMore();
                         }}
-                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1"
+                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
                       >
                         <MoreHorizontal
-                          className="w-3 h-3 text-gray-700"
+                          className="w-4 h-4 text-gray-700"
                           strokeWidth={2}
                         />
                       </button>
@@ -427,18 +427,18 @@ export function ContextToolbar({
                         onMouseLeave={(e) => {
                           e.stopPropagation();
                         }}
-                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1"
+                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
                       >
                         {colorTag !== "none" ? (
                           <div
-                            className="w-3 h-3 rounded-full border-2 border-gray-300"
+                            className="w-4 h-4 rounded-full border-2 border-gray-300"
                             style={{
                               backgroundColor: getColorTagColor(),
                             }}
                           />
                         ) : (
                           <Circle
-                            className="w-3 h-3 text-gray-700"
+                            className="w-4 h-4 text-gray-700"
                             strokeWidth={2}
                           />
                         )}

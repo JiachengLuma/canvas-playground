@@ -797,7 +797,7 @@ export function CanvasObject({
   // Constant viewport sizes (inverse of zoom to maintain screen size)
   // Elements inside transform need /zoomLevel to compensate for scaling
   const viewportBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
-  const viewportHandleSize = 10 / zoomLevel;
+  const viewportHandleSize = 12 / zoomLevel; // Slightly larger handles for better UX
   const viewportHandleBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
   const viewportColorTagSize = 16 / zoomLevel;
   const viewportColorTagOffset = -6 / zoomLevel;
