@@ -342,7 +342,7 @@ export function CanvasObject({
             ? `${Math.floor(duration / 60)}m ${duration % 60}s`
             : `${duration}s`;
 
-        // Elegant zoom-aware scaling for duration badge
+        // Elegant zoom-aware scaling for duration badge - SMALLER SIZE
         // Instead of linear 1/zoom, use a clamped inverse that prevents extremes
         // At high zoom (>1): scale up proportionally to maintain viewport size
         // At medium zoom (0.5-1): scale moderately
@@ -359,9 +359,9 @@ export function CanvasObject({
 
         // Responsive positioning: stays near corner but scales gracefully
         const badgeInset = getZoomAwareSize(8, 1, 3); // 8px base, max 24px at extreme zoom
-        const badgeFontSize = getZoomAwareSize(16, 1, 2.5); // 16px base, max 40px
+        const badgeFontSize = getZoomAwareSize(12, 1, 2.5); // SMALLER: 12px base (was 16px)
         const badgeLineHeight = badgeFontSize * 1.3; // Maintain proportional line-height
-        const badgePaddingX = getZoomAwareSize(10, 1, 2); // 10px base, max 20px
+        const badgePaddingX = getZoomAwareSize(8, 1, 2); // SMALLER: 8px base (was 10px)
         const badgePaddingY = getZoomAwareSize(2, 1, 2); // 2px base, max 4px
         const badgeRadius = getZoomAwareSize(28, 1, 2); // 28px base, max 56px
         const badgeBlur = Math.min(10, getZoomAwareSize(10, 1, 1.5)); // Blur stays reasonable
@@ -378,13 +378,13 @@ export function CanvasObject({
               playsInline
             />
 
-            {/* Duration indicator - only show when NOT selected */}
+            {/* Duration indicator - only show when NOT selected - PINNED TOP LEFT */}
             {!isSelected && duration > 0 && (
               <div
                 className="absolute pointer-events-none"
                 style={{
                   left: badgeInset,
-                  bottom: badgeInset,
+                  top: badgeInset, // CHANGED FROM bottom to top
                   fontSize: `${badgeFontSize}px`,
                   lineHeight: `${badgeLineHeight}px`,
                 }}
@@ -930,7 +930,7 @@ export function CanvasObject({
       }
     >
       {/* Selection border - only show for single selection */}
-      {isSelected && !isPartOfMultiSelect && !isDraggingAny && (
+      {isSelected && !isPartOfMultiSelect && (
         <div
           className="absolute pointer-events-none"
           style={{
@@ -1072,24 +1072,27 @@ export function CanvasObject({
         </div>
       )}
 
-      {/* Hover border */}
-      {(isHovered || isHoveredBySelection) && !isSelected && !isDraggingAny && (
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            // Position at object bounds
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            // Use outline instead of border so it renders outside the box
-            outline: `${viewportBorderWidth}px solid ${hoverColor}`,
-            outlineOffset: 0,
-            borderRadius: viewportBorderRadius,
-            zIndex: 10, // Above content to be visible
-          }}
-        />
-      )}
+      {/* Hover border - hide during drag but not during resize */}
+      {(isHovered || isHoveredBySelection) &&
+        !isSelected &&
+        !isDraggingAny &&
+        !isResizing && (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              // Position at object bounds
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              // Use outline instead of border so it renders outside the box
+              outline: `${viewportBorderWidth}px solid ${hoverColor}`,
+              outlineOffset: 0,
+              borderRadius: viewportBorderRadius,
+              zIndex: 10, // Above content to be visible
+            }}
+          />
+        )}
 
       {/* Content */}
       <div
@@ -1140,11 +1143,7 @@ export function CanvasObject({
         !object.parentId &&
         shouldShowMetadata(object.type) &&
         shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.1, ease: "easeOut" }}
+          <div
             style={{
               position: "absolute",
               left: 0,
@@ -1174,7 +1173,7 @@ export function CanvasObject({
             >
               {object.type === "sticky" ? "Note" : object.type}
             </span>
-          </motion.div>
+          </div>
         )}
 
       {/* Metadata header - CREATOR/DIMENSIONS (right side) also shown above object */}
@@ -1187,11 +1186,7 @@ export function CanvasObject({
         zoomLevel > 0.3 &&
         shouldShowMetadata(object.type) &&
         shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.1, ease: "easeOut" }}
+          <div
             style={{
               position: "absolute",
               right: 0,
@@ -1230,7 +1225,7 @@ export function CanvasObject({
                   })()
                 : `${Math.round(object.width)} × ${Math.round(object.height)}`}
             </span>
-          </motion.div>
+          </div>
         )}
 
       {/* Generating state header - TYPE (left side) shown above object */}
@@ -1239,11 +1234,7 @@ export function CanvasObject({
         !object.parentId &&
         shouldShowMetadata(object.type) &&
         shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.1, ease: "easeOut" }}
+          <div
             style={{
               position: "absolute",
               left: 0,
@@ -1272,7 +1263,7 @@ export function CanvasObject({
             >
               Generating
             </span>
-          </motion.div>
+          </div>
         )}
 
       {/* Generating state header - CREATOR (right side) also shown above object */}
@@ -1282,11 +1273,7 @@ export function CanvasObject({
         zoomLevel > 0.3 &&
         shouldShowMetadata(object.type) &&
         shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.1, ease: "easeOut" }}
+          <div
             style={{
               position: "absolute",
               right: 0,
@@ -1313,7 +1300,7 @@ export function CanvasObject({
             >
               {object.metadata?.createdBy?.name || "AI"}
             </span>
-          </motion.div>
+          </div>
         )}
 
       {/* Frame label - always shown for frames */}
