@@ -7,6 +7,7 @@ interface SelectionBoundsProps {
   maxX: number;
   maxY: number;
   zoomLevel: number;
+  selectionColor: string;
   onResizeStart?: (corner: string, e: React.MouseEvent) => void;
 }
 
@@ -16,6 +17,7 @@ export function SelectionBounds({
   maxX,
   maxY,
   zoomLevel,
+  selectionColor,
   onResizeStart,
 }: SelectionBoundsProps) {
   const [isShiftPressed, setIsShiftPressed] = useState(false);
@@ -64,7 +66,7 @@ export function SelectionBounds({
         height,
         pointerEvents: "none",
         // Use outline instead of border so it renders outside the box
-        outline: `${viewportBorderWidth}px solid rgb(59 130 246)`, // blue-500
+        outline: `${viewportBorderWidth}px solid ${selectionColor}`,
         outlineOffset: 0,
         borderRadius: viewportBorderRadius,
         zIndex: 500, // Higher z-index to ensure selection is visible above all objects
@@ -75,7 +77,7 @@ export function SelectionBounds({
         <>
           {/* Top-left */}
           <motion.div
-            className="absolute bg-white border-blue-500 border-solid cursor-nwse-resize hover:bg-gray-50"
+            className="absolute bg-white cursor-nwse-resize hover:bg-gray-50"
             initial={false}
             animate={{
               borderRadius: isShiftPressed ? "50%" : "20%",
@@ -90,6 +92,8 @@ export function SelectionBounds({
               width: viewportHandleSize,
               height: viewportHandleSize,
               borderWidth: viewportHandleBorderWidth,
+              borderColor: selectionColor,
+              borderStyle: "solid",
               pointerEvents: "auto",
               boxSizing: "border-box",
             }}
@@ -101,7 +105,7 @@ export function SelectionBounds({
           />
           {/* Top-right */}
           <motion.div
-            className="absolute bg-white border-blue-500 border-solid cursor-nesw-resize hover:bg-gray-50"
+            className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
             initial={false}
             animate={{
               borderRadius: isShiftPressed ? "50%" : "20%",
@@ -116,6 +120,8 @@ export function SelectionBounds({
               width: viewportHandleSize,
               height: viewportHandleSize,
               borderWidth: viewportHandleBorderWidth,
+              borderColor: selectionColor,
+              borderStyle: "solid",
               pointerEvents: "auto",
               boxSizing: "border-box",
             }}
@@ -127,7 +133,7 @@ export function SelectionBounds({
           />
           {/* Bottom-left */}
           <motion.div
-            className="absolute bg-white border-blue-500 border-solid cursor-nesw-resize hover:bg-gray-50"
+            className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
             initial={false}
             animate={{
               borderRadius: isShiftPressed ? "50%" : "20%",
@@ -142,6 +148,8 @@ export function SelectionBounds({
               width: viewportHandleSize,
               height: viewportHandleSize,
               borderWidth: viewportHandleBorderWidth,
+              borderColor: selectionColor,
+              borderStyle: "solid",
               pointerEvents: "auto",
               boxSizing: "border-box",
             }}
@@ -153,7 +161,7 @@ export function SelectionBounds({
           />
           {/* Bottom-right */}
           <motion.div
-            className="absolute bg-white border-blue-500 border-solid cursor-nwse-resize hover:bg-gray-50"
+            className="absolute bg-white cursor-nwse-resize hover:bg-gray-50"
             initial={false}
             animate={{
               borderRadius: isShiftPressed ? "50%" : "20%",
@@ -168,6 +176,8 @@ export function SelectionBounds({
               width: viewportHandleSize,
               height: viewportHandleSize,
               borderWidth: viewportHandleBorderWidth,
+              borderColor: selectionColor,
+              borderStyle: "solid",
               pointerEvents: "auto",
               boxSizing: "border-box",
             }}

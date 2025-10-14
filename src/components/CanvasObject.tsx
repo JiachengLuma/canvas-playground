@@ -35,6 +35,8 @@ interface CanvasObjectProps {
   hoveredBySelectionIds?: string[];
   activeToolbarId?: string | null;
   isMultiSelect?: boolean;
+  selectionColor: string;
+  hoverColor: string;
   onSetActiveToolbar: (id: string | null) => void;
   onActivateToolbarSystem: () => void;
   onObjectHoverEnter: (id: string) => void;
@@ -68,6 +70,8 @@ export function CanvasObject({
   hoveredBySelectionIds,
   activeToolbarId,
   isMultiSelect,
+  selectionColor,
+  hoverColor,
   onSetActiveToolbar,
   onActivateToolbarSystem,
   onObjectHoverEnter,
@@ -754,6 +758,8 @@ export function CanvasObject({
                   hoveredBySelectionIds={hoveredBySelectionIds}
                   activeToolbarId={activeToolbarId}
                   isMultiSelect={isMultiSelect}
+                  selectionColor={selectionColor}
+                  hoverColor={hoverColor}
                   onSetActiveToolbar={onSetActiveToolbar}
                   onActivateToolbarSystem={onActivateToolbarSystem}
                   onObjectHoverEnter={onObjectHoverEnter}
@@ -934,7 +940,7 @@ export function CanvasObject({
             right: 0,
             bottom: 0,
             // Use outline instead of border so it renders outside the box
-            outline: `${viewportBorderWidth}px solid rgb(59 130 246)`, // blue-500
+            outline: `${viewportBorderWidth}px solid ${selectionColor}`,
             outlineOffset: 0,
             borderRadius: viewportBorderRadius,
             zIndex: 10, // Above content to be visible
@@ -946,7 +952,7 @@ export function CanvasObject({
               {/* Top-left - only show when object is large enough on screen */}
               {showAllHandles && (
                 <motion.div
-                  className="absolute bg-white border-blue-500 border-solid cursor-nwse-resize hover:bg-gray-50"
+                  className="absolute bg-white cursor-nwse-resize hover:bg-gray-50"
                   initial={false}
                   animate={{
                     borderRadius: isShiftPressed ? "50%" : "20%",
@@ -961,6 +967,8 @@ export function CanvasObject({
                     width: viewportHandleSize,
                     height: viewportHandleSize,
                     borderWidth: viewportHandleBorderWidth,
+                    borderColor: selectionColor,
+                    borderStyle: "solid",
                     pointerEvents: "auto",
                     boxSizing: "border-box",
                   }}
@@ -973,7 +981,7 @@ export function CanvasObject({
               )}
               {/* Top-right - ALWAYS show (even at small zoom) */}
               <motion.div
-                className="absolute bg-white border-blue-500 border-solid cursor-nesw-resize hover:bg-gray-50"
+                className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
                 initial={false}
                 animate={{
                   borderRadius: isShiftPressed ? "50%" : "20%",
@@ -988,6 +996,8 @@ export function CanvasObject({
                   width: viewportHandleSize,
                   height: viewportHandleSize,
                   borderWidth: viewportHandleBorderWidth,
+                  borderColor: selectionColor,
+                  borderStyle: "solid",
                   pointerEvents: "auto",
                   boxSizing: "border-box",
                 }}
@@ -1000,7 +1010,7 @@ export function CanvasObject({
               {/* Bottom-left - only show when object is large enough on screen */}
               {showAllHandles && (
                 <motion.div
-                  className="absolute bg-white border-blue-500 border-solid cursor-nesw-resize hover:bg-gray-50"
+                  className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
                   initial={false}
                   animate={{
                     borderRadius: isShiftPressed ? "50%" : "20%",
@@ -1015,6 +1025,8 @@ export function CanvasObject({
                     width: viewportHandleSize,
                     height: viewportHandleSize,
                     borderWidth: viewportHandleBorderWidth,
+                    borderColor: selectionColor,
+                    borderStyle: "solid",
                     pointerEvents: "auto",
                     boxSizing: "border-box",
                   }}
@@ -1028,7 +1040,7 @@ export function CanvasObject({
               {/* Bottom-right - only show when object is large enough on screen */}
               {showAllHandles && (
                 <motion.div
-                  className="absolute bg-white border-blue-500 border-solid cursor-nwse-resize hover:bg-gray-50"
+                  className="absolute bg-white cursor-nwse-resize hover:bg-gray-50"
                   initial={false}
                   animate={{
                     borderRadius: isShiftPressed ? "50%" : "20%",
@@ -1043,6 +1055,8 @@ export function CanvasObject({
                     width: viewportHandleSize,
                     height: viewportHandleSize,
                     borderWidth: viewportHandleBorderWidth,
+                    borderColor: selectionColor,
+                    borderStyle: "solid",
                     pointerEvents: "auto",
                     boxSizing: "border-box",
                   }}
@@ -1069,7 +1083,7 @@ export function CanvasObject({
             right: 0,
             bottom: 0,
             // Use outline instead of border so it renders outside the box
-            outline: `${viewportBorderWidth}px solid rgb(147 197 253)`, // blue-300
+            outline: `${viewportBorderWidth}px solid ${hoverColor}`,
             outlineOffset: 0,
             borderRadius: viewportBorderRadius,
             zIndex: 10, // Above content to be visible

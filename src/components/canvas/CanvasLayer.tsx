@@ -50,6 +50,10 @@ export interface CanvasLayerProps {
   activeToolbarId: string | null;
   toolbarSystemActivated: boolean;
 
+  // Color theme
+  selectionColor: string;
+  hoverColor: string;
+
   // Event handlers
   onCanvasMouseDown: (e: React.MouseEvent) => void;
   onCanvasMouseMove: (e: React.MouseEvent) => void;
@@ -116,6 +120,8 @@ export function CanvasLayer({
   activeObject,
   activeToolbarId,
   toolbarSystemActivated,
+  selectionColor,
+  hoverColor,
   onCanvasMouseDown,
   onCanvasMouseMove,
   onCanvasMouseUp,
@@ -276,6 +282,8 @@ export function CanvasLayer({
           zoomLevel={zoomLevel}
           activeToolbarId={activeToolbarId}
           toolbarSystemActivated={toolbarSystemActivated}
+          selectionColor={selectionColor}
+          hoverColor={hoverColor}
           onSetActiveToolbar={onSetActiveToolbar}
           onActivateToolbarSystem={onActivateToolbarSystem}
           onObjectHoverEnter={onToolbarHoverEnter}
@@ -301,6 +309,7 @@ export function CanvasLayer({
               maxX={selectionBounds.maxX}
               maxY={selectionBounds.maxY}
               zoomLevel={zoomLevel}
+              selectionColor={selectionColor}
               onResizeStart={onResizeStart}
             />
           )}
@@ -315,6 +324,7 @@ export function CanvasLayer({
               currentX={selectionCurrent.x}
               currentY={selectionCurrent.y}
               zoomLevel={zoomLevel}
+              selectionColor={selectionColor}
             />
           )}
         </AnimatePresence>
@@ -382,6 +392,7 @@ export function CanvasLayer({
               height={activeObject.height * zoomLevel}
               rotation={0}
               side={dragHandleSide}
+              selectionColor={selectionColor}
               onDragStart={onDragHandleStart}
               onMouseEnter={onToolbarHoverEnter}
               onMouseLeave={onToolbarHoverLeave}

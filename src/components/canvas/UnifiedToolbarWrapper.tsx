@@ -168,8 +168,6 @@ export function UnifiedToolbarWrapper({
   const [promptText, setPromptText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const prevMetadataVisible = useRef<boolean | null>(null);
-  const currentMetadataVisibleRef = useRef<boolean>(false);
 
   // Handle Enter key to activate prompt mode
   useEffect(() => {
@@ -194,12 +192,6 @@ export function UnifiedToolbarWrapper({
       });
     }
   }, [isPromptMode]);
-
-  // Update previous metadata visibility after each render
-  // This must be at top level before any conditional returns
-  useEffect(() => {
-    prevMetadataVisible.current = currentMetadataVisibleRef.current;
-  });
 
   const handlePromptSubmit = () => {
     if (!promptText.trim()) return;
@@ -246,7 +238,6 @@ export function UnifiedToolbarWrapper({
   let toolbarLeftScreen: number, toolbarTopScreen: number;
   let tabButtonLeftScreen: number, tabButtonTopScreen: number;
   let heightInScreenPx: number, widthInScreenPx: number;
-  let currentMetadataVisible = false; // Track if metadata header should be visible
   let shouldShowToolbarBasedOnSize = true; // Track if toolbar should be shown at all (micro state hides it)
 
   if (mode === "multi" && bounds) {
@@ -301,9 +292,6 @@ export function UnifiedToolbarWrapper({
       !object.parentId &&
       shouldShowMetadata(object.type as any) &&
       shouldShowObjectMetadata(width, height, zoomLevel);
-
-    // Store for animation tracking
-    currentMetadataVisible = shouldShowMetadataHeader;
 
     // Check if frame header should be shown
     const hasFrameHeader = object.type === "frame";
@@ -372,41 +360,24 @@ export function UnifiedToolbarWrapper({
         )
       : false;
 
-  // Update current ref with the calculated value
-  currentMetadataVisibleRef.current = currentMetadataVisible;
-
-  // Check if metadata visibility changed (only animate on change)
-  const metadataVisibilityChanged =
-    prevMetadataVisible.current !== null &&
-    prevMetadataVisible.current !== currentMetadataVisible;
-
   return (
     <AnimatePresence>
       {/* Main toolbar - positioned ABOVE the object */}
       {!isPromptMode && (
         <motion.div
           key="toolbar"
-          initial={{ opacity: 0, y: toolbarTopScreen }}
+          initial={{ opacity: 0 }}
           animate={{
             opacity: 1,
-            y: toolbarTopScreen,
           }}
           exit={{ opacity: 0 }}
           transition={{
             opacity: { duration: 0.1, ease: "easeOut" },
-            // Only animate position when metadata visibility changes
-            y: metadataVisibilityChanged
-              ? {
-                  duration: 0.4,
-                  ease: [0.34, 1.56, 0.64, 1], // Smooth spring-like easing
-                  type: "tween",
-                }
-              : { duration: 0 }, // Instant snap for other changes
           }}
           style={{
             position: "absolute",
             left: toolbarLeftScreen,
-            top: 0, // We'll use the y animation instead
+            top: toolbarTopScreen,
             pointerEvents: "none",
             zIndex: 10000,
           }}

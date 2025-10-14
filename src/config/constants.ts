@@ -18,6 +18,10 @@ export const TOOLBAR_COMPACT_THRESHOLD = 0.6; // Show compact mode when object w
 // Drag
 export const DRAG_THRESHOLD_PX = 3; // Minimum pixels to move before drag starts
 
+// Selection & Hover Colors
+export const SELECTION_COLOR = "rgb(0 0 0)"; // Black for selection bounds and handles
+export const HOVER_COLOR = "rgba(0, 0, 0, 0.3)"; // Transparent black for hover bounds
+
 // Color Tags
 export const COLOR_TAGS = {
   none: "transparent",

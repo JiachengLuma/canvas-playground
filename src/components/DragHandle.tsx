@@ -8,6 +8,7 @@ interface DragHandleProps {
   height: number; // Selection height in screen pixels
   rotation: number; // Selection rotation in degrees
   side?: "left" | "right"; // Which side to show the handle on
+  selectionColor: string;
   onDragStart: (e: React.MouseEvent) => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -20,6 +21,7 @@ export function DragHandle({
   height,
   rotation,
   side = "right",
+  selectionColor,
   onDragStart,
   onMouseEnter,
   onMouseLeave,
@@ -90,12 +92,15 @@ export function DragHandle({
         zIndex: 10001,
         borderWidth: handleBorderWidth,
         borderRadius: handleBorderRadius,
+        borderColor: selectionColor,
+        borderStyle: "solid",
         boxSizing: "border-box",
+        backgroundColor: "white",
       }}
       onMouseDown={onDragStart}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="bg-white border-blue-500 border-solid hover:bg-gray-50 active:cursor-grabbing shadow-sm"
+      className="hover:bg-gray-50 active:cursor-grabbing shadow-sm"
     />
   );
 }

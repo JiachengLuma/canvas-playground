@@ -29,6 +29,7 @@ import { useHistory } from "./hooks/useHistory";
 import { useFrameDrawing } from "./hooks/useFrameDrawing";
 import { useContextMenu } from "./hooks/useContextMenu";
 import { useWheel } from "./hooks/useWheel";
+import { useColorTheme } from "./hooks/useColorTheme";
 
 // Handlers
 import { createObjectHandlers } from "./handlers/objectHandlers";
@@ -57,6 +58,7 @@ export default function App() {
   const frameDrawing = useFrameDrawing();
   const contextMenuState = useContextMenu();
   const [showDocumentation, setShowDocumentation] = useState(false);
+  const colorTheme = useColorTheme();
 
   // ===== Wheel Event Handling =====
   useWheel({
@@ -293,6 +295,8 @@ export default function App() {
         onAddFrame={artifactHandlers.handleAddEmptyFrame}
         onAddAgentFrame={artifactHandlers.handleAddAgentFrame}
         onOpenDocumentation={() => setShowDocumentation(true)}
+        colorTheme={colorTheme.theme}
+        onToggleColorTheme={colorTheme.toggleTheme}
       />
 
       {/* Canvas */}
@@ -317,6 +321,8 @@ export default function App() {
         isResizing={drag.isResizing}
         isDraggingHandle={drag.isDraggingHandle}
         activeObject={activeObject}
+        selectionColor={colorTheme.selectionColor}
+        hoverColor={colorTheme.hoverColor}
         activeToolbarId={toolbar.activeToolbarId}
         toolbarSystemActivated={toolbar.toolbarSystemActivated}
         onCanvasMouseDown={mouseHandlers.handleCanvasMouseDown}
