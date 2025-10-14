@@ -8,6 +8,7 @@ import {
   Square,
   LayoutGrid,
   Ungroup,
+  CornerDownLeft,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, useRef, useEffect } from "react";
@@ -43,7 +44,7 @@ interface ContextToolbarProps {
 export function ContextToolbar({
   objectTypes,
   isMultiSelect,
-  objectWidth,
+  // objectWidth, // No longer used with simplified animation
   activeObject,
   onZoomToFit,
   colorTag = "none",
@@ -63,7 +64,6 @@ export function ContextToolbar({
   const [isPromptMode, setIsPromptMode] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const wasCompactBeforePrompt = useRef(false);
 
   const getColorTagColor = () => {
     switch (colorTag) {
@@ -93,12 +93,6 @@ export function ContextToolbar({
     }
   };
 
-  const handleTabToTalkClick = () => {
-    // Remember if we were in compact mode before entering prompt
-    wasCompactBeforePrompt.current = shouldShowCompact;
-    setIsPromptMode(true);
-  };
-
   // Focus input when entering prompt mode
   useEffect(() => {
     if (isPromptMode && inputRef.current) {
@@ -111,10 +105,10 @@ export function ContextToolbar({
     }
   }, [isPromptMode]);
 
-  // Handle global Tab key to activate prompt mode
+  // Handle global Enter key to activate prompt mode
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Tab" && !isPromptMode) {
+      if (e.key === "Enter" && !isPromptMode) {
         e.preventDefault();
         setIsPromptMode(true);
       }
@@ -129,63 +123,24 @@ export function ContextToolbar({
   const isFrame = type === "frame" && !isMultiSelect;
 
   // Determine if we should show compact mode
-  // Force compact mode if forceCompact is true (based on zoom level)
-  // Otherwise, show compact if object is less than 60% of toolbar width
+  // Simple binary decision: either full or compact (ellipsis only)
   const shouldShowCompact = forceCompact;
-
-  // Calculate shrink factor based on available space
-  // 0 = full size, 1 = fully compact (ellipsis only)
-  const getShrinkFactor = () => {
-    if (!objectWidth) return 0;
-
-    const minSize = 48; // Size when we show ellipsis only
-    const fullSize = 240; // Approximate full toolbar size in vertical mode
-
-    if (isVertical) {
-      // For vertical toolbar, shrink based on object height
-      if (objectWidth < minSize) return 1; // Fully compact
-      if (objectWidth >= fullSize) return 0; // Full size
-      // Linear interpolation between minSize and fullSize
-      return 1 - (objectWidth - minSize) / (fullSize - minSize);
-    } else {
-      // For horizontal toolbar, shrink based on object width
-      if (objectWidth < minSize) return 1;
-      if (objectWidth >= fullSize) return 0;
-      return 1 - (objectWidth - minSize) / (fullSize - minSize);
-    }
-  };
-
-  const shrinkFactor = forceCompact ? 1 : getShrinkFactor();
-  const isFullyCompact = shrinkFactor >= 0.95; // Show ellipsis when almost fully shrunk
-
-  // Calculate the actual size based on shrink factor for smooth animation
-  const minToolbarSize = 24; // Ellipsis only size
-  const maxToolbarSize = 240; // Full toolbar size
-  const currentSize =
-    minToolbarSize + (maxToolbarSize - minToolbarSize) * (1 - shrinkFactor);
 
   return (
     <TooltipProvider delayDuration={500}>
       <motion.div
         ref={toolbarRef}
         initial={{ opacity: 0 }}
-        animate={{
-          opacity: 1,
-          [isVertical ? "maxHeight" : "maxWidth"]: `${currentSize}px`,
-        }}
+        animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{
-          opacity: { duration: 0.1 },
-          maxHeight: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
-          maxWidth: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
-        }}
+        transition={{ opacity: { duration: 0.1 } }}
         className={`flex items-center ${isVertical ? "flex-col" : ""} ${
           isVertical ? "gap-1" : "gap-2"
-        } overflow-hidden rounded-full`}
+        } rounded-full`}
         style={{ pointerEvents: "auto" }}
       >
         {!isPromptMode &&
-          (isFullyCompact ? (
+          (shouldShowCompact ? (
             // Show only ellipsis when fully compact
             <motion.button
               onMouseDown={(e) => {
@@ -212,18 +167,18 @@ export function ContextToolbar({
                 isVertical ? "gap-1" : "gap-2"
               } flex-shrink-0`}
             >
-              {/* Tab button - perfect circle */}
+              {/* Enter button - icon only */}
               {onAIPrompt && !hideTabButton && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleTabToTalkClick();
+                        setIsPromptMode(true);
                       }}
-                      className="bg-white/95 backdrop-blur-md text-gray-700 rounded-full shadow-lg border border-black/5 hover:bg-gray-50 transition-colors w-10 h-10 flex items-center justify-center text-xs flex-shrink-0"
+                      className="bg-white/95 backdrop-blur-md text-gray-700 rounded-full shadow-lg border border-black/5 hover:bg-gray-50 transition-colors w-10 h-10 flex items-center justify-center flex-shrink-0"
                     >
-                      Tab
+                      <CornerDownLeft className="w-4 h-4" strokeWidth={2} />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent

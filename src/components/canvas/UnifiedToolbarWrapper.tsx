@@ -5,10 +5,21 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { CornerDownLeft, ArrowUp } from "lucide-react";
 import { ContextToolbar } from "../ContextToolbar";
 import { CanvasObject as CanvasObjectType } from "../../types";
-import { getToolbarGap } from "../../utils/canvasUtils";
-import { shouldShowToolbar } from "../../config/behaviorConfig";
+import {
+  getToolbarGap,
+  getAdaptiveToolbarGap,
+  getMetadataHeaderHeight,
+  shouldShowObjectMetadata,
+  shouldUseCompactToolbar,
+  shouldShowToolbarUI,
+} from "../../utils/canvasUtils";
+import {
+  shouldShowToolbar,
+  shouldShowMetadata,
+} from "../../config/behaviorConfig";
 
 type ToolbarMode = "single" | "multi" | "frame";
 
@@ -157,11 +168,13 @@ export function UnifiedToolbarWrapper({
   const [promptText, setPromptText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const prevMetadataVisible = useRef<boolean | null>(null);
+  const currentMetadataVisibleRef = useRef<boolean>(false);
 
-  // Handle Tab key to activate prompt mode
+  // Handle Enter key to activate prompt mode
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Tab" && !isPromptMode) {
+      if (e.key === "Enter" && !isPromptMode) {
         e.preventDefault();
         setIsPromptMode(true);
       }
@@ -181,6 +194,12 @@ export function UnifiedToolbarWrapper({
       });
     }
   }, [isPromptMode]);
+
+  // Update previous metadata visibility after each render
+  // This must be at top level before any conditional returns
+  useEffect(() => {
+    prevMetadataVisible.current = currentMetadataVisibleRef.current;
+  });
 
   const handlePromptSubmit = () => {
     if (!promptText.trim()) return;
@@ -227,85 +246,167 @@ export function UnifiedToolbarWrapper({
   let toolbarLeftScreen: number, toolbarTopScreen: number;
   let tabButtonLeftScreen: number, tabButtonTopScreen: number;
   let heightInScreenPx: number, widthInScreenPx: number;
+  let currentMetadataVisible = false; // Track if metadata header should be visible
+  let shouldShowToolbarBasedOnSize = true; // Track if toolbar should be shown at all (micro state hides it)
 
   if (mode === "multi" && bounds) {
-    // Multi-select mode: bounds are already in screen coordinates
+    // Multi-select mode: bounds are in canvas coordinates, need conversion
     const width = bounds.maxX - bounds.minX;
     const height = bounds.maxY - bounds.minY;
     const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerY = (bounds.minY + bounds.maxY) / 2;
 
     objectTypes = selectedObjectTypes;
     colorTag = multiColorTag;
 
-    // Calculate toolbar gap in screen pixels
-    const toolbarGapInCanvasPx = getToolbarGap(zoomLevel);
-    const toolbarGapInScreenPx = toolbarGapInCanvasPx * zoomLevel;
+    // Use consistent gap with single objects (no metadata)
+    const toolbarGap = getToolbarGap(zoomLevel);
+    const bottomButtonGap = getToolbarGap(zoomLevel);
 
-    // Position toolbar to the LEFT, centered vertically (already screen coordinates)
-    toolbarLeftScreen = bounds.minX - toolbarGapInScreenPx;
-    toolbarTopScreen = centerY;
+    // Convert to screen coordinates and position toolbar
+    const centerXScreen = centerX * zoomLevel + panOffset.x;
+    const boundsMinYScreen = bounds.minY * zoomLevel + panOffset.y;
+    const boundsMaxYScreen = bounds.maxY * zoomLevel + panOffset.y;
 
-    // Position Tab button BELOW, centered horizontally (already screen coordinates)
-    tabButtonLeftScreen = centerX;
-    tabButtonTopScreen = bounds.maxY + toolbarGapInScreenPx;
+    // Position toolbar ABOVE, centered horizontally
+    toolbarLeftScreen = centerXScreen;
+    toolbarTopScreen = boundsMinYScreen - toolbarGap * zoomLevel;
 
-    // Dimensions for compact mode check (already in screen space)
-    heightInScreenPx = height;
-    widthInScreenPx = width;
+    // Position Enter button BELOW, centered horizontally
+    tabButtonLeftScreen = centerXScreen;
+    tabButtonTopScreen = boundsMaxYScreen + bottomButtonGap * zoomLevel;
+
+    // Dimensions for compact mode check (convert to screen space)
+    heightInScreenPx = height * zoomLevel;
+    widthInScreenPx = width * zoomLevel;
+
+    // Check if toolbar should be shown at all (micro state hides it)
+    shouldShowToolbarBasedOnSize =
+      heightInScreenPx > 10 || widthInScreenPx > 10;
   } else if (mode === "single" && object) {
     // Single/frame mode: object coordinates are in canvas space, need conversion
     const actualDims = getActualDimensions(object, objects);
     const width = actualDims.width;
     const height = actualDims.height;
     const centerX = object.x + width / 2;
-    const centerY = object.y + height / 2;
 
     objectTypes = [object.type];
     colorTag = object.colorTag || "none";
 
-    // Calculate toolbar gap in canvas pixels
-    const toolbarGapInCanvasPx = getToolbarGap(zoomLevel);
+    // Check if metadata header should be shown using generalized size system
+    const shouldShowMetadataHeader =
+      !isMultiSelect &&
+      !isDragging &&
+      object.type !== "frame" &&
+      object.state !== "generating" &&
+      !object.parentId &&
+      shouldShowMetadata(object.type as any) &&
+      shouldShowObjectMetadata(width, height, zoomLevel);
 
-    // Position toolbar to the LEFT, centered vertically (convert canvas to screen)
-    const toolbarLeftCanvas = object.x - toolbarGapInCanvasPx;
-    const toolbarTopCanvas = centerY;
+    // Store for animation tracking
+    currentMetadataVisible = shouldShowMetadataHeader;
+
+    // Check if frame header should be shown
+    const hasFrameHeader = object.type === "frame";
+
+    // Calculate gap based on whether metadata is shown
+    let toolbarGapFromObject: number;
+    let metadataOffset = 0;
+
+    if (shouldShowMetadataHeader) {
+      // Metadata is shown: use adaptive gap + metadata offset
+      // This pushes toolbar up to give heading room
+      toolbarGapFromObject = getAdaptiveToolbarGap(width, height, zoomLevel);
+      metadataOffset = getMetadataHeaderHeight(zoomLevel);
+    } else if (hasFrameHeader) {
+      // Frame header is shown: use adaptive gap + frame header offset
+      toolbarGapFromObject = getAdaptiveToolbarGap(width, height, zoomLevel);
+      metadataOffset = 20 / zoomLevel;
+    } else {
+      // No metadata: use same distance as Type button (close to object)
+      toolbarGapFromObject = getToolbarGap(zoomLevel);
+      metadataOffset = 0;
+    }
+
+    // Position toolbar ABOVE, centered horizontally (convert canvas to screen)
+    // Gap changes based on metadata visibility for smooth behavior
+    const toolbarLeftCanvas = centerX;
+    const toolbarTopCanvas = object.y - toolbarGapFromObject - metadataOffset;
     toolbarLeftScreen = toolbarLeftCanvas * zoomLevel + panOffset.x;
     toolbarTopScreen = toolbarTopCanvas * zoomLevel + panOffset.y;
 
-    // Position Tab button BELOW, centered horizontally (convert canvas to screen)
+    // Position Enter button BELOW, centered horizontally (convert canvas to screen)
+    // Use standard gap for bottom button
+    const bottomButtonGap = getToolbarGap(zoomLevel);
     const tabButtonLeftCanvas = centerX;
-    const tabButtonTopCanvas = object.y + height + toolbarGapInCanvasPx;
+    const tabButtonTopCanvas = object.y + height + bottomButtonGap;
     tabButtonLeftScreen = tabButtonLeftCanvas * zoomLevel + panOffset.x;
     tabButtonTopScreen = tabButtonTopCanvas * zoomLevel + panOffset.y;
 
     // Dimensions for compact mode check (convert to screen space)
     heightInScreenPx = height * zoomLevel;
     widthInScreenPx = width * zoomLevel;
+
+    // Check if toolbar should be shown at all using unified classification
+    shouldShowToolbarBasedOnSize = shouldShowToolbarUI(
+      width,
+      height,
+      zoomLevel
+    );
   } else {
     return null;
   }
 
-  // Determine compact mode based on screen size
-  const toolbarSizePx = 48;
+  // Early return if object is too small (micro state)
+  if (!shouldShowToolbarBasedOnSize) return null;
+
+  // Determine compact mode using unified size classification
+  // Multi-select: never show compact mode
   const shouldShowCompact =
-    heightInScreenPx < toolbarSizePx * 1.2 ||
-    widthInScreenPx < toolbarSizePx * 1.2;
+    mode === "multi"
+      ? false
+      : object
+      ? shouldUseCompactToolbar(
+          widthInScreenPx / zoomLevel,
+          heightInScreenPx / zoomLevel,
+          zoomLevel
+        )
+      : false;
+
+  // Update current ref with the calculated value
+  currentMetadataVisibleRef.current = currentMetadataVisible;
+
+  // Check if metadata visibility changed (only animate on change)
+  const metadataVisibilityChanged =
+    prevMetadataVisible.current !== null &&
+    prevMetadataVisible.current !== currentMetadataVisible;
 
   return (
     <AnimatePresence>
-      {/* Main toolbar - positioned LEFT of the object */}
+      {/* Main toolbar - positioned ABOVE the object */}
       {!isPromptMode && (
         <motion.div
           key="toolbar"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{ opacity: 0, y: toolbarTopScreen }}
+          animate={{
+            opacity: 1,
+            y: toolbarTopScreen,
+          }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.1, ease: "easeOut" }}
+          transition={{
+            opacity: { duration: 0.1, ease: "easeOut" },
+            // Only animate position when metadata visibility changes
+            y: metadataVisibilityChanged
+              ? {
+                  duration: 0.4,
+                  ease: [0.34, 1.56, 0.64, 1], // Smooth spring-like easing
+                  type: "tween",
+                }
+              : { duration: 0 }, // Instant snap for other changes
+          }}
           style={{
             position: "absolute",
             left: toolbarLeftScreen,
-            top: toolbarTopScreen,
+            top: 0, // We'll use the y animation instead
             pointerEvents: "none",
             zIndex: 10000,
           }}
@@ -317,9 +418,9 @@ export function UnifiedToolbarWrapper({
             style={{
               pointerEvents: "auto",
               display: "flex",
-              flexDirection: "column",
+              flexDirection: "row",
               alignItems: "center",
-              transform: "translate(-100%, -50%)",
+              transform: "translate(-50%, -100%)",
             }}
           >
             <ContextToolbar
@@ -384,16 +485,16 @@ export function UnifiedToolbarWrapper({
                   : undefined
               }
               hideTabButton={true}
-              isVertical={true}
+              isVertical={false}
               forceCompact={shouldShowCompact}
             />
           </div>
         </motion.div>
       )}
 
-      {/* Tab button / Input field - positioned BELOW the object */}
+      {/* Enter button / Input field - positioned BELOW the object */}
       <motion.div
-        key="tab-button"
+        key="enter-button"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -416,88 +517,84 @@ export function UnifiedToolbarWrapper({
           }}
         >
           {!isPromptMode ? (
-            // Tab button - scale animation between compact and full
-            <motion.button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsPromptMode(true);
+            // Enter button - "Type..." with icon, or just icon when compact
+            shouldShowCompact ? (
+              // Compact mode: just icon in circle (same size as toolbar ellipsis)
+              <motion.button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPromptMode(true);
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ opacity: { duration: 0.1 } }}
+                className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors w-6 h-6 flex items-center justify-center"
+                style={{
+                  fontFamily: "Graphik, sans-serif",
+                }}
+              >
+                <CornerDownLeft
+                  className="w-3 h-3"
+                  strokeWidth={2}
+                  style={{
+                    color: "rgba(0, 0, 0, 0.6)",
+                  }}
+                />
+              </motion.button>
+            ) : (
+              // Full mode: text + icon
+              <motion.button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPromptMode(true);
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ opacity: { duration: 0.1 } }}
+                className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors px-3 h-[30px] flex items-center justify-center gap-1.5"
+                style={{
+                  fontFamily: "Graphik, sans-serif",
+                }}
+              >
+                <span
+                  className="text-[11px] leading-[11px] font-medium whitespace-nowrap"
+                  style={{
+                    color: "rgba(0, 0, 0, 0.7)",
+                  }}
+                >
+                  Type...
+                </span>
+                <CornerDownLeft
+                  className="w-3 h-3"
+                  strokeWidth={2}
+                  style={{
+                    color: "rgba(0, 0, 0, 0.6)",
+                  }}
+                />
+              </motion.button>
+            )
+          ) : (
+            // Expanded input field with scale animation
+            <motion.div
+              initial={{
+                scale: 0.3,
+                opacity: 0,
               }}
-              animate={{
-                scale: shouldShowCompact ? 0.8 : 1,
-                height: shouldShowCompact ? 24 : 30,
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{
+                scale: 0.3,
+                opacity: 0,
               }}
               transition={{
-                scale: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
-                height: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+                scale: { duration: 0.25, ease: [0.4, 0, 0.2, 1] },
+                opacity: { duration: 0.2 },
               }}
-              className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors px-2.5 flex items-center justify-center gap-1 overflow-hidden"
-              style={{
-                fontFamily: "Graphik, sans-serif",
-              }}
-            >
-              <AnimatePresence mode="wait">
-                {shouldShowCompact ? (
-                  // Compact: Just "Tab" text
-                  <motion.span
-                    key="compact"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="text-[10px] leading-[10px] whitespace-nowrap font-medium"
-                    style={{
-                      color: "rgba(0, 0, 0, 0.6)",
-                    }}
-                  >
-                    Tab
-                  </motion.span>
-                ) : (
-                  // Full: "Type..." + "Tab" badge
-                  <motion.div
-                    key="full"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex items-center gap-1"
-                  >
-                    <span
-                      className="text-[11px] leading-[11px] font-medium"
-                      style={{
-                        color: "rgba(0, 0, 0, 0.7)",
-                      }}
-                    >
-                      Type...
-                    </span>
-                    <div
-                      className="border border-black/[0.1] border-solid rounded-[4px] px-[8px] py-[3px]"
-                      style={{
-                        height: "16px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <span
-                        className="text-[11px] leading-[11px] whitespace-nowrap font-medium"
-                        style={{
-                          color: "rgba(0, 0, 0, 0.6)",
-                        }}
-                      >
-                        Tab
-                      </span>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.button>
-          ) : (
-            // Expanded input field
-            <div
               className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] px-3 py-1.5 flex items-center gap-2"
               style={{
                 fontFamily: "Graphik, sans-serif",
-                minWidth: "280px",
+                width: "220px",
               }}
             >
               <input
@@ -506,7 +603,7 @@ export function UnifiedToolbarWrapper({
                 value={promptText}
                 onChange={(e) => setPromptText(e.target.value)}
                 onKeyDown={handlePromptKeyDown}
-                placeholder="Type to edit..."
+                placeholder="Type to direct next move..."
                 className="flex-1 bg-transparent border-none outline-none text-sm"
                 style={{
                   color: "rgba(0, 0, 0, 0.9)",
@@ -520,11 +617,11 @@ export function UnifiedToolbarWrapper({
                   handlePromptSubmit();
                 }}
                 disabled={!promptText.trim()}
-                className="flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 transition-colors px-2 py-1 disabled:opacity-30 disabled:cursor-not-allowed text-xs"
+                className="flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 transition-colors w-6 h-6 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                ↵
+                <ArrowUp className="w-4 h-4" strokeWidth={1.5} />
               </button>
-            </div>
+            </motion.div>
           )}
         </div>
       </motion.div>

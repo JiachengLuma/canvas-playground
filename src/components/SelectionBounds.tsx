@@ -44,9 +44,10 @@ export function SelectionBounds({
   }, []);
   const width = maxX - minX;
   const height = maxY - minY;
-  const viewportBorderWidth = 2 / zoomLevel;
+  // Elements inside transform need /zoomLevel to compensate for scaling
+  const viewportBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
   const viewportHandleSize = 10 / zoomLevel;
-  const viewportHandleBorderWidth = 2 / zoomLevel;
+  const viewportHandleBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
   const viewportBorderRadius = 5 / zoomLevel;
 
   return (
@@ -62,11 +63,12 @@ export function SelectionBounds({
         width,
         height,
         pointerEvents: "none",
-        borderWidth: viewportBorderWidth,
+        // Use outline instead of border so it renders outside the box
+        outline: `${viewportBorderWidth}px solid rgb(59 130 246)`, // blue-500
+        outlineOffset: 0,
         borderRadius: viewportBorderRadius,
         zIndex: 500, // Higher z-index to ensure selection is visible above all objects
       }}
-      className="border-blue-500"
     >
       {/* Corner handles - ALWAYS show for multi-selection */}
       {onResizeStart && (

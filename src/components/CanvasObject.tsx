@@ -12,6 +12,10 @@ import {
 import { CanvasObject as CanvasObjectType, ArtifactType } from "../types";
 import { shouldShowMetadata } from "../config/behaviorConfig";
 import { AgentFrameHeader } from "./AgentFrameEffects";
+import {
+  shouldShowObjectMetadata,
+  shouldShowAllCornerHandles,
+} from "../utils/canvasUtils";
 
 interface CanvasObjectProps {
   object: CanvasObjectType;
@@ -785,21 +789,21 @@ export function CanvasObject({
     isActiveToolbar && !hasMovedDuringDrag && !isPartOfMultiSelect;
 
   // Constant viewport sizes (inverse of zoom to maintain screen size)
-  const viewportBorderWidth = 2 / zoomLevel;
+  // Elements inside transform need /zoomLevel to compensate for scaling
+  const viewportBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
   const viewportHandleSize = 10 / zoomLevel;
-  const viewportHandleBorderWidth = 2 / zoomLevel;
+  const viewportHandleBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
   const viewportColorTagSize = 16 / zoomLevel;
   const viewportColorTagOffset = -6 / zoomLevel;
   const viewportBorderRadius = 5 / zoomLevel;
 
-  // Calculate actual screen size of the object (object size * zoom)
-  const screenWidth = object.width * zoomLevel;
-  const screenHeight = object.height * zoomLevel;
-  const smallerScreenDimension = Math.min(screenWidth, screenHeight);
-
-  // Show all 4 corner handles when object is large enough on screen (>100px in smaller dimension)
-  // This way handles appear/disappear based on visual size, not just zoom level
-  const showAllHandles = smallerScreenDimension > 100;
+  // Show all 4 corner handles using unified size classification
+  // Tiny objects (< 60px) show only 1 handle, others show all 4
+  const showAllHandles = shouldShowAllCornerHandles(
+    object.width,
+    object.height,
+    zoomLevel
+  );
 
   // Dynamic toolbar gap: closer when zoomed out (2-6px range)
   const toolbarGap = 2 + 4 * Math.min(1, zoomLevel);
@@ -922,15 +926,16 @@ export function CanvasObject({
       {/* Selection border - only show for single selection */}
       {isSelected && !isPartOfMultiSelect && !isDraggingAny && (
         <div
-          className="absolute border-blue-500 pointer-events-none"
+          className="absolute pointer-events-none"
           style={{
-            // Use negative positioning to extend border outside content area
-            // This prevents the border from being clipped by overflow-hidden
-            top: -viewportBorderWidth / 2,
-            left: -viewportBorderWidth / 2,
-            right: -viewportBorderWidth / 2,
-            bottom: -viewportBorderWidth / 2,
-            borderWidth: viewportBorderWidth,
+            // Position at object bounds
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            // Use outline instead of border so it renders outside the box
+            outline: `${viewportBorderWidth}px solid rgb(59 130 246)`, // blue-500
+            outlineOffset: 0,
             borderRadius: viewportBorderRadius,
             zIndex: 10, // Above content to be visible
           }}
@@ -1056,14 +1061,16 @@ export function CanvasObject({
       {/* Hover border */}
       {(isHovered || isHoveredBySelection) && !isSelected && !isDraggingAny && (
         <div
-          className="absolute border-blue-300 pointer-events-none"
+          className="absolute pointer-events-none"
           style={{
-            // Use negative positioning to extend border outside content area
-            top: -viewportBorderWidth / 2,
-            left: -viewportBorderWidth / 2,
-            right: -viewportBorderWidth / 2,
-            bottom: -viewportBorderWidth / 2,
-            borderWidth: viewportBorderWidth,
+            // Position at object bounds
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            // Use outline instead of border so it renders outside the box
+            outline: `${viewportBorderWidth}px solid rgb(147 197 253)`, // blue-300
+            outlineOffset: 0,
             borderRadius: viewportBorderRadius,
             zIndex: 10, // Above content to be visible
           }}
@@ -1110,13 +1117,15 @@ export function CanvasObject({
       )}
 
       {/* Metadata header - shown when selected (but not for frames or objects inside frames) */}
+      {/* Metadata header - TYPE (left side) shown above object */}
       {isSelected &&
         !isPartOfMultiSelect &&
         !isDraggingAny &&
         object.type !== "frame" &&
         object.state !== "generating" &&
         !object.parentId &&
-        shouldShowMetadata(object.type) && (
+        shouldShowMetadata(object.type) &&
+        shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1125,7 +1134,11 @@ export function CanvasObject({
             style={{
               position: "absolute",
               left: 0,
-              top: -(8 / zoomLevel + 12 / zoomLevel), // Gap (8px) + text height (12px)
+              // Adaptive gap: closer at small zoom (same as right side)
+              top: -(
+                (2 + 6 * Math.min(1, zoomLevel)) / zoomLevel +
+                12 / zoomLevel
+              ),
               pointerEvents: "auto",
               zIndex: 1000,
               fontSize: `${12 / zoomLevel}px`,
@@ -1158,7 +1171,8 @@ export function CanvasObject({
         object.state !== "generating" &&
         !object.parentId &&
         zoomLevel > 0.3 &&
-        shouldShowMetadata(object.type) && (
+        shouldShowMetadata(object.type) &&
+        shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1167,7 +1181,11 @@ export function CanvasObject({
             style={{
               position: "absolute",
               right: 0,
-              top: -(8 / zoomLevel + 12 / zoomLevel), // Gap (8px) + text height (12px)
+              // Adaptive gap: closer at small zoom for better visual proximity
+              top: -(
+                (2 + 6 * Math.min(1, zoomLevel)) / zoomLevel +
+                12 / zoomLevel
+              ),
               pointerEvents: "auto",
               zIndex: 1000,
               fontSize: `${12 / zoomLevel}px`,
@@ -1205,7 +1223,8 @@ export function CanvasObject({
       {object.state === "generating" &&
         object.type !== "frame" &&
         !object.parentId &&
-        shouldShowMetadata(object.type) && (
+        shouldShowMetadata(object.type) &&
+        shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1214,7 +1233,11 @@ export function CanvasObject({
             style={{
               position: "absolute",
               left: 0,
-              top: -(8 / zoomLevel + 12 / zoomLevel), // Gap (8px) + text height (12px)
+              // Adaptive gap: closer at small zoom
+              top: -(
+                (2 + 6 * Math.min(1, zoomLevel)) / zoomLevel +
+                12 / zoomLevel
+              ),
               pointerEvents: "auto",
               zIndex: 1000,
               fontSize: `${12 / zoomLevel}px`,
@@ -1243,7 +1266,8 @@ export function CanvasObject({
         object.type !== "frame" &&
         !object.parentId &&
         zoomLevel > 0.3 &&
-        shouldShowMetadata(object.type) && (
+        shouldShowMetadata(object.type) &&
+        shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1252,7 +1276,11 @@ export function CanvasObject({
             style={{
               position: "absolute",
               right: 0,
-              top: -(8 / zoomLevel + 12 / zoomLevel), // Gap (8px) + text height (12px)
+              // Adaptive gap: closer at small zoom
+              top: -(
+                (2 + 6 * Math.min(1, zoomLevel)) / zoomLevel +
+                12 / zoomLevel
+              ),
               pointerEvents: "auto",
               zIndex: 1000,
               fontSize: `${12 / zoomLevel}px`,
