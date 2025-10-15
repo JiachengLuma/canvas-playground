@@ -3,16 +3,20 @@
  * Main canvas rendering layer with all interactions, objects, and overlays
  */
 
+import { useState, useEffect } from "react";
 import { AnimatePresence } from "motion/react";
 import { CanvasObject as CanvasObjectType, ColorTag } from "../../types";
 import { ObjectsLayer } from "./ObjectsLayer";
 import { SelectionBounds } from "../SelectionBounds";
-import { MultiSelectToolbar } from "../MultiSelectToolbar";
 import { SelectionBox } from "../SelectionBox";
 import { FrameDrawingBox } from "../FrameDrawingBox";
 import { DragHandle } from "../DragHandle";
-import { SingleObjectToolbarWrapper } from "./SingleObjectToolbarWrapper";
+import { UnifiedToolbarWrapper } from "./UnifiedToolbarWrapper";
 import { shouldShowDragHandle } from "../../config/behaviorConfig";
+import {
+  shouldShowDragHandleUI,
+  getSelectionGap,
+} from "../../utils/canvasUtils";
 
 export interface CanvasLayerProps {
   // Canvas ref
@@ -48,6 +52,10 @@ export interface CanvasLayerProps {
   activeObject: CanvasObjectType | null;
   activeToolbarId: string | null;
   toolbarSystemActivated: boolean;
+
+  // Color theme
+  selectionColor: string;
+  hoverColor: string;
 
   // Event handlers
   onCanvasMouseDown: (e: React.MouseEvent) => void;
@@ -115,6 +123,8 @@ export function CanvasLayer({
   activeObject,
   activeToolbarId,
   toolbarSystemActivated,
+  selectionColor,
+  hoverColor,
   onCanvasMouseDown,
   onCanvasMouseMove,
   onCanvasMouseUp,
@@ -148,6 +158,60 @@ export function CanvasLayer({
   onFrameSelectionWithAutolayout,
   onDragHandleStart,
 }: CanvasLayerProps) {
+  // Track which side the drag handle should appear on based on mouse position
+  const [dragHandleSide, setDragHandleSide] = useState<"left" | "right">(
+    "right"
+  );
+
+  // Track mouse position to determine which edge is being hovered
+  useEffect(() => {
+    if (!activeObject || isMultiSelect || isDraggingObject || isResizing) {
+      setDragHandleSide("right"); // Default to right when not hovering
+      return;
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Get object bounds in screen space
+      const objScreenX = activeObject.x * zoomLevel + panOffset.x;
+      const objScreenY = activeObject.y * zoomLevel + panOffset.y;
+      const objScreenWidth = activeObject.width * zoomLevel;
+      const objScreenHeight = activeObject.height * zoomLevel;
+
+      // Define edge detection zones (20% of width on each side)
+      const edgeThreshold = objScreenWidth * 0.3;
+      const leftEdgeEnd = objScreenX + edgeThreshold;
+      const rightEdgeStart = objScreenX + objScreenWidth - edgeThreshold;
+
+      // Check if mouse is within object bounds
+      const isInObjectX =
+        e.clientX >= objScreenX && e.clientX <= objScreenX + objScreenWidth;
+      const isInObjectY =
+        e.clientY >= objScreenY && e.clientY <= objScreenY + objScreenHeight;
+
+      if (isInObjectX && isInObjectY) {
+        // Mouse is hovering over the object
+        if (e.clientX <= leftEdgeEnd) {
+          // Hovering near left edge
+          setDragHandleSide("left");
+        } else if (e.clientX >= rightEdgeStart) {
+          // Hovering near right edge
+          setDragHandleSide("right");
+        }
+        // If in the middle, keep current side
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, [
+    activeObject,
+    zoomLevel,
+    panOffset,
+    isMultiSelect,
+    isDraggingObject,
+    isResizing,
+  ]);
+
   // Calculate background size and position based on zoom level and pan offset
   // This makes the dots appear to be part of the canvas coordinate system
 
@@ -221,6 +285,8 @@ export function CanvasLayer({
           zoomLevel={zoomLevel}
           activeToolbarId={activeToolbarId}
           toolbarSystemActivated={toolbarSystemActivated}
+          selectionColor={selectionColor}
+          hoverColor={hoverColor}
           onSetActiveToolbar={onSetActiveToolbar}
           onActivateToolbarSystem={onActivateToolbarSystem}
           onObjectHoverEnter={onToolbarHoverEnter}
@@ -246,24 +312,8 @@ export function CanvasLayer({
               maxX={selectionBounds.maxX}
               maxY={selectionBounds.maxY}
               zoomLevel={zoomLevel}
+              selectionColor={selectionColor}
               onResizeStart={onResizeStart}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Multi-Select Toolbar */}
-        <AnimatePresence>
-          {isMultiSelect && !isDraggingObject && !isResizing && (
-            <MultiSelectToolbar
-              selectedCount={selectedIds.length}
-              objectTypes={selectedObjectTypes}
-              zoomLevel={zoomLevel}
-              bounds={selectionBounds}
-              colorTag={multiSelectColorTag}
-              onColorTagChange={onMultiSelectColorTagChange}
-              onAIPrompt={(prompt) => console.log("Multi AI prompt:", prompt)}
-              onReframe={onFrameSelection}
-              onFrameWithAutolayout={onFrameSelectionWithAutolayout}
             />
           )}
         </AnimatePresence>
@@ -277,6 +327,7 @@ export function CanvasLayer({
               currentX={selectionCurrent.x}
               currentY={selectionCurrent.y}
               zoomLevel={zoomLevel}
+              selectionColor={selectionColor}
             />
           )}
         </AnimatePresence>
@@ -297,8 +348,30 @@ export function CanvasLayer({
         </AnimatePresence>
       </div>
 
+      {/* Multi-Select Toolbar - rendered outside transform wrapper */}
+      {isMultiSelect && (
+        <UnifiedToolbarWrapper
+          mode="multi"
+          bounds={selectionBounds}
+          selectedObjectTypes={selectedObjectTypes}
+          zoomLevel={zoomLevel}
+          panOffset={panOffset}
+          isMultiSelect={isMultiSelect}
+          isDragging={isDraggingObject}
+          isResizing={isResizing}
+          multiColorTag={multiSelectColorTag}
+          onMultiColorTagChange={onMultiSelectColorTagChange}
+          onMultiAIPrompt={(prompt) => console.log("Multi AI prompt:", prompt)}
+          onFrameSelection={onFrameSelection}
+          onFrameSelectionWithAutolayout={onFrameSelectionWithAutolayout}
+          onToolbarHoverEnter={onToolbarHoverEnter}
+          onToolbarHoverLeave={onToolbarHoverLeave}
+        />
+      )}
+
       {/* Drag Handle - rendered outside transform wrapper */}
-      {/* Show for generating placeholders too (but not toolbar) */}
+      {/* Drag handle - shown on right side of object */}
+      {/* Hidden in micro and tiny states (≤ 30px) to reduce clutter */}
       <AnimatePresence mode="wait">
         {activeObject &&
           !isMultiSelect &&
@@ -306,45 +379,65 @@ export function CanvasLayer({
           !isResizing &&
           !isDraggingHandle &&
           shouldShowDragHandle(activeObject.type) &&
+          shouldShowDragHandleUI(
+            activeObject.width,
+            activeObject.height,
+            zoomLevel
+          ) &&
           !(
             activeObject.type === "frame" &&
             (activeObject as any).isAgentCreating
-          ) && (
-            <DragHandle
-              x={activeObject.x * zoomLevel + panOffset.x}
-              y={activeObject.y * zoomLevel + panOffset.y}
-              width={activeObject.width * zoomLevel}
-              height={activeObject.height * zoomLevel}
-              rotation={0}
-              onDragStart={onDragHandleStart}
-              onMouseEnter={onToolbarHoverEnter}
-              onMouseLeave={onToolbarHoverLeave}
-            />
-          )}
+          ) &&
+          (() => {
+            // Calculate dynamic selection gap for drag handle positioning
+            const dragHandleGap = getSelectionGap(
+              activeObject.width,
+              activeObject.height,
+              zoomLevel
+            );
+            return (
+              <DragHandle
+                x={activeObject.x * zoomLevel + panOffset.x - dragHandleGap}
+                y={activeObject.y * zoomLevel + panOffset.y - dragHandleGap}
+                width={activeObject.width * zoomLevel + dragHandleGap * 2}
+                height={activeObject.height * zoomLevel + dragHandleGap * 2}
+                rotation={0}
+                side={dragHandleSide}
+                selectionColor={selectionColor}
+                onDragStart={onDragHandleStart}
+                onMouseEnter={onToolbarHoverEnter}
+                onMouseLeave={onToolbarHoverLeave}
+              />
+            );
+          })()}
       </AnimatePresence>
 
       {/* Single Object Toolbar - rendered outside transform wrapper */}
-      <SingleObjectToolbarWrapper
-        activeObject={activeObject}
-        objects={objects}
-        isMultiSelect={isMultiSelect}
-        isDraggingObject={isDraggingObject}
-        isResizing={isResizing}
-        zoomLevel={zoomLevel}
-        panOffset={panOffset}
-        onToolbarHoverEnter={onToolbarHoverEnter}
-        onToolbarHoverLeave={onToolbarHoverLeave}
-        onZoomToFit={onZoomToFit}
-        onColorTagChange={onColorTagChange}
-        onAIPrompt={onAIPrompt}
-        onConvertToVideo={onConvertToVideo}
-        onRerun={onRerun}
-        onReframe={onReframe}
-        onUnframe={onUnframe}
-        onToggleAutolayout={onToggleAutolayout}
-        onMore={onMore}
-        onDownload={onDownload}
-      />
+      {/* Toolbar adapts to object size using 3-state system (tiny/small/normal) */}
+      {
+        <UnifiedToolbarWrapper
+          mode="single"
+          object={activeObject || undefined}
+          objects={objects}
+          isMultiSelect={isMultiSelect}
+          isDragging={isDraggingObject}
+          isResizing={isResizing}
+          zoomLevel={zoomLevel}
+          panOffset={panOffset}
+          onToolbarHoverEnter={onToolbarHoverEnter}
+          onToolbarHoverLeave={onToolbarHoverLeave}
+          onZoomToFit={onZoomToFit}
+          onColorTagChange={onColorTagChange}
+          onAIPrompt={onAIPrompt}
+          onConvertToVideo={onConvertToVideo}
+          onRerun={onRerun}
+          onReframe={onReframe}
+          onUnframe={onUnframe}
+          onToggleAutolayout={onToggleAutolayout}
+          onMore={onMore}
+          onDownload={onDownload}
+        />
+      }
     </div>
   );
 }

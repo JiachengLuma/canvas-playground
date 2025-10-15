@@ -13,10 +13,11 @@ export interface KeyboardShortcutsConfig {
   onToggleFrameDrawing?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
+  onZoomToFit?: () => void;
 }
 
 export function useKeyboardShortcuts(config: KeyboardShortcutsConfig) {
-  const { onDelete, onDuplicate, onSelectAll, onDeselectAll, onToggleFrameDrawing, onUndo, onRedo } = config;
+  const { onDelete, onDuplicate, onSelectAll, onDeselectAll, onToggleFrameDrawing, onUndo, onRedo, onZoomToFit } = config;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -63,10 +64,16 @@ export function useKeyboardShortcuts(config: KeyboardShortcutsConfig) {
         e.preventDefault();
         onToggleFrameDrawing();
       }
+
+      // Space for zoom to fit selected object
+      if (e.key === " " && !e.metaKey && !e.ctrlKey && onZoomToFit) {
+        e.preventDefault();
+        onZoomToFit();
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onDelete, onDuplicate, onSelectAll, onDeselectAll, onToggleFrameDrawing, onUndo, onRedo]);
+  }, [onDelete, onDuplicate, onSelectAll, onDeselectAll, onToggleFrameDrawing, onUndo, onRedo, onZoomToFit]);
 }
 

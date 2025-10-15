@@ -93,12 +93,73 @@ export function getObjectsInBox(
 }
 
 /**
- * Calculate toolbar gap based on zoom level
- * Returns the gap (in pixels) between object and toolbar
+ * Calculate toolbar gap based on zoom level and object size
+ * Returns the gap (in canvas pixels) between object and toolbar
+ * Gets much closer (2px) at small zoom levels for better visual proximity
  */
 export function getToolbarGap(zoomLevel: number): number {
-  // 8px at normal/high zoom, scales down to 4px minimum when zoomed out
-  return 4 + 4 * Math.min(1, zoomLevel);
+  // At high zoom (1.0+): 10px gap (was 8px, added 2px)
+  // At low zoom (0.3): 4px gap (was 2px, added 2px)
+  // Interpolate between them for smooth transition
+  const minGap = 4;
+  const maxGap = 10;
+  const gapInScreenSpace = minGap + (maxGap - minGap) * Math.min(1, zoomLevel);
+  return gapInScreenSpace / zoomLevel;
+}
+
+/**
+ * Calculate adaptive toolbar gap based on object screen size
+ * Returns the gap (in canvas pixels) between metadata header and toolbar
+ * Larger objects: smaller gap (toolbar closer)
+ * Smaller objects: larger gap (toolbar moves up to give heading room)
+ */
+export function getAdaptiveToolbarGap(
+  objectHeight: number,
+  objectWidth: number,
+  zoomLevel: number
+): number {
+  // Calculate screen dimensions
+  const screenHeight = objectHeight * zoomLevel;
+  const screenWidth = objectWidth * zoomLevel;
+  const smallerDimension = Math.min(screenHeight, screenWidth);
+
+  // Define thresholds (in screen pixels)
+  const veryLargeThreshold = 400; // Very large objects
+  const largeThreshold = 250; // Large objects
+  const mediumThreshold = 150; // Medium objects
+  const smallThreshold = 80; // Small objects
+  
+  // Define gaps (in screen pixels) - more dramatic differences
+  const veryLargeGap = -4; // Very close when huge
+  const largeGap = -4; // Close when large
+  const mediumGap = 0; // Medium distance
+  const smallGap = 4; // Further away when small (added 2px for small/tiny states)
+  const tinyGap = 4; // Very far when tiny (added 2px for small/tiny states)
+
+  let gapInScreenPx: number;
+
+  if (smallerDimension >= veryLargeThreshold) {
+    gapInScreenPx = veryLargeGap;
+  } else if (smallerDimension >= largeThreshold) {
+    // Interpolate between veryLarge and large
+    const t = (smallerDimension - largeThreshold) / (veryLargeThreshold - largeThreshold);
+    gapInScreenPx = largeGap + (veryLargeGap - largeGap) * t;
+  } else if (smallerDimension >= mediumThreshold) {
+    // Interpolate between large and medium
+    const t = (smallerDimension - mediumThreshold) / (largeThreshold - mediumThreshold);
+    gapInScreenPx = mediumGap + (largeGap - mediumGap) * t;
+  } else if (smallerDimension >= smallThreshold) {
+    // Interpolate between medium and small
+    const t = (smallerDimension - smallThreshold) / (mediumThreshold - smallThreshold);
+    gapInScreenPx = smallGap + (mediumGap - smallGap) * t;
+  } else {
+    // Interpolate between small and tiny
+    const t = smallerDimension / smallThreshold;
+    gapInScreenPx = tinyGap + (smallGap - tinyGap) * t;
+  }
+
+  // Convert screen pixels to canvas pixels
+  return gapInScreenPx / zoomLevel;
 }
 
 /**
@@ -179,5 +240,137 @@ export function distance(
   y2: number
 ): number {
   return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+}
+
+/**
+ * UI Size Classification System
+ * 
+ * Four states based on screen dimensions:
+ * - Micro (≤ 10px): 1 corner handle only, no toolbar, no heading
+ * - Tiny (10-30px): 1 corner handle, compact toolbar, no heading
+ * - Small (30-120px): 4 corner handles, full toolbar, no heading
+ * - Normal (≥ 120px): 4 corner handles, full toolbar, with heading
+ */
+export type UISizeState = 'micro' | 'tiny' | 'small' | 'normal';
+
+export function getUISizeState(
+  objectWidth: number,
+  objectHeight: number,
+  zoomLevel: number
+): UISizeState {
+  const screenHeight = objectHeight * zoomLevel;
+  const screenWidth = objectWidth * zoomLevel;
+  const smallerDimension = Math.min(screenHeight, screenWidth);
+
+  if (smallerDimension <= 10) return 'micro';
+  if (smallerDimension < 30) return 'tiny';
+  if (smallerDimension < 120) return 'small';
+  return 'normal';
+}
+
+/**
+ * Get selection gap based on object size
+ * Returns gap in screen pixels:
+ * - Normal (larger objects): 2px
+ * - Small and Tiny: 1px
+ * - Micro: 0.5px
+ */
+export function getSelectionGap(
+  objectWidth: number,
+  objectHeight: number,
+  zoomLevel: number
+): number {
+  const sizeState = getUISizeState(objectWidth, objectHeight, zoomLevel);
+  
+  switch (sizeState) {
+    case 'micro':
+      return 0.5;
+    case 'tiny':
+    case 'small':
+      return 1;
+    case 'normal':
+    default:
+      return 2;
+  }
+}
+
+/**
+ * Check if object should show metadata header (heading)
+ * Only shown in 'normal' state
+ */
+export function shouldShowObjectMetadata(
+  objectWidth: number,
+  objectHeight: number,
+  zoomLevel: number
+): boolean {
+  return getUISizeState(objectWidth, objectHeight, zoomLevel) === 'normal';
+}
+
+/**
+ * Check if toolbar should be shown at all
+ * Hidden in 'micro' state (≤ 10px)
+ */
+export function shouldShowToolbarUI(
+  objectWidth: number,
+  objectHeight: number,
+  zoomLevel: number
+): boolean {
+  return getUISizeState(objectWidth, objectHeight, zoomLevel) !== 'micro';
+}
+
+/**
+ * Check if toolbar should be compact (ellipsis mode)
+ * Only compact in 'tiny' state (10-30px)
+ */
+export function shouldUseCompactToolbar(
+  objectWidth: number,
+  objectHeight: number,
+  zoomLevel: number
+): boolean {
+  return getUISizeState(objectWidth, objectHeight, zoomLevel) === 'tiny';
+}
+
+/**
+ * Check if object should show all 4 corner handles
+ * Only show 1 handle in 'micro' and 'tiny' states, all 4 in 'small' and 'normal'
+ */
+export function shouldShowAllCornerHandles(
+  objectWidth: number,
+  objectHeight: number,
+  zoomLevel: number
+): boolean {
+  const state = getUISizeState(objectWidth, objectHeight, zoomLevel);
+  return state !== 'micro' && state !== 'tiny';
+}
+
+/**
+ * Check if object should show the drag handle (right side handle)
+ * Hidden in 'micro' and 'tiny' states (≤ 30px)
+ */
+export function shouldShowDragHandleUI(
+  objectWidth: number,
+  objectHeight: number,
+  zoomLevel: number
+): boolean {
+  const state = getUISizeState(objectWidth, objectHeight, zoomLevel);
+  return state !== 'micro' && state !== 'tiny';
+}
+
+/**
+ * Calculate the height of the metadata header above an object
+ * Returns the height in canvas pixels
+ * This is used to position the toolbar above the metadata header
+ */
+export function getMetadataHeaderHeight(zoomLevel: number): number {
+  // The metadata header positioning is:
+  // top: -((3 + 6 * Math.min(1, zoomLevel)) / zoomLevel + 12 / zoomLevel)
+  // This breaks down to:
+  // - Gap: (3 + 6 * Math.min(1, zoomLevel)) / zoomLevel (added 1px spacing)
+  // - Font height: 12 / zoomLevel
+  
+  const gap = (3 + 6 * Math.min(1, zoomLevel)) / zoomLevel;
+  const fontSize = 12 / zoomLevel;
+  
+  return gap + fontSize;
 }
 

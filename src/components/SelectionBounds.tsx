@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
+import { getSelectionGap } from "../utils/canvasUtils";
 
 interface SelectionBoundsProps {
   minX: number;
@@ -7,6 +8,7 @@ interface SelectionBoundsProps {
   maxX: number;
   maxY: number;
   zoomLevel: number;
+  selectionColor: string;
   onResizeStart?: (corner: string, e: React.MouseEvent) => void;
 }
 
@@ -16,6 +18,7 @@ export function SelectionBounds({
   maxX,
   maxY,
   zoomLevel,
+  selectionColor,
   onResizeStart,
 }: SelectionBoundsProps) {
   const [isShiftPressed, setIsShiftPressed] = useState(false);
@@ -44,9 +47,14 @@ export function SelectionBounds({
   }, []);
   const width = maxX - minX;
   const height = maxY - minY;
-  const viewportBorderWidth = 2 / zoomLevel;
-  const viewportHandleSize = 12 / zoomLevel;
+  // Elements inside transform need /zoomLevel to compensate for scaling
+  const viewportBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
+  const viewportHandleSize = 10 / zoomLevel;
+  const viewportHandleBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
   const viewportBorderRadius = 5 / zoomLevel;
+  // Dynamic selection gap based on bounds size: 2px (normal), 1px (small/tiny), 0.5px (micro)
+  const selectionGapInScreenPx = getSelectionGap(width, height, zoomLevel);
+  const viewportPadding = selectionGapInScreenPx / zoomLevel;
 
   return (
     <motion.div
@@ -56,25 +64,27 @@ export function SelectionBounds({
       transition={{ duration: 0.1, ease: "easeOut" }}
       style={{
         position: "absolute",
-        left: minX,
-        top: minY,
-        width,
-        height,
+        left: minX - viewportPadding,
+        top: minY - viewportPadding,
+        width: width + viewportPadding * 2,
+        height: height + viewportPadding * 2,
         pointerEvents: "none",
-        borderWidth: viewportBorderWidth,
+        // Use outline instead of border so it renders outside the box
+        outline: `${viewportBorderWidth}px solid ${selectionColor}`,
+        outlineOffset: 0,
         borderRadius: viewportBorderRadius,
         zIndex: 500, // Higher z-index to ensure selection is visible above all objects
       }}
-      className="border-blue-500"
     >
       {/* Corner handles - ALWAYS show for multi-selection */}
       {onResizeStart && (
         <>
           {/* Top-left */}
           <motion.div
-            className="absolute bg-blue-500 cursor-nwse-resize hover:bg-blue-600"
+            className="absolute bg-white cursor-nwse-resize hover:bg-gray-50"
+            initial={false}
             animate={{
-              borderRadius: isShiftPressed ? "20%" : "50%",
+              borderRadius: isShiftPressed ? "50%" : "20%",
             }}
             transition={{
               duration: 0.15,
@@ -85,7 +95,11 @@ export function SelectionBounds({
               left: -viewportHandleSize / 2,
               width: viewportHandleSize,
               height: viewportHandleSize,
+              borderWidth: viewportHandleBorderWidth,
+              borderColor: selectionColor,
+              borderStyle: "solid",
               pointerEvents: "auto",
+              boxSizing: "border-box",
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -95,9 +109,10 @@ export function SelectionBounds({
           />
           {/* Top-right */}
           <motion.div
-            className="absolute bg-blue-500 cursor-nesw-resize hover:bg-blue-600"
+            className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
+            initial={false}
             animate={{
-              borderRadius: isShiftPressed ? "20%" : "50%",
+              borderRadius: isShiftPressed ? "50%" : "20%",
             }}
             transition={{
               duration: 0.15,
@@ -108,7 +123,11 @@ export function SelectionBounds({
               right: -viewportHandleSize / 2,
               width: viewportHandleSize,
               height: viewportHandleSize,
+              borderWidth: viewportHandleBorderWidth,
+              borderColor: selectionColor,
+              borderStyle: "solid",
               pointerEvents: "auto",
+              boxSizing: "border-box",
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -118,9 +137,10 @@ export function SelectionBounds({
           />
           {/* Bottom-left */}
           <motion.div
-            className="absolute bg-blue-500 cursor-nesw-resize hover:bg-blue-600"
+            className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
+            initial={false}
             animate={{
-              borderRadius: isShiftPressed ? "20%" : "50%",
+              borderRadius: isShiftPressed ? "50%" : "20%",
             }}
             transition={{
               duration: 0.15,
@@ -131,7 +151,11 @@ export function SelectionBounds({
               left: -viewportHandleSize / 2,
               width: viewportHandleSize,
               height: viewportHandleSize,
+              borderWidth: viewportHandleBorderWidth,
+              borderColor: selectionColor,
+              borderStyle: "solid",
               pointerEvents: "auto",
+              boxSizing: "border-box",
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -141,9 +165,10 @@ export function SelectionBounds({
           />
           {/* Bottom-right */}
           <motion.div
-            className="absolute bg-blue-500 cursor-nwse-resize hover:bg-blue-600"
+            className="absolute bg-white cursor-nwse-resize hover:bg-gray-50"
+            initial={false}
             animate={{
-              borderRadius: isShiftPressed ? "20%" : "50%",
+              borderRadius: isShiftPressed ? "50%" : "20%",
             }}
             transition={{
               duration: 0.15,
@@ -154,7 +179,11 @@ export function SelectionBounds({
               right: -viewportHandleSize / 2,
               width: viewportHandleSize,
               height: viewportHandleSize,
+              borderWidth: viewportHandleBorderWidth,
+              borderColor: selectionColor,
+              borderStyle: "solid",
               pointerEvents: "auto",
+              boxSizing: "border-box",
             }}
             onMouseDown={(e) => {
               e.stopPropagation();

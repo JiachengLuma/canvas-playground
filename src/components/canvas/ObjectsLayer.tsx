@@ -17,6 +17,8 @@ interface ObjectsLayerProps {
   zoomLevel: number;
   activeToolbarId: string | null;
   toolbarSystemActivated: boolean;
+  selectionColor: string;
+  hoverColor: string;
   onSetActiveToolbar: (id: string | null) => void;
   onActivateToolbarSystem: () => void;
   onObjectHoverEnter: () => void;
@@ -44,6 +46,8 @@ export function ObjectsLayer({
   zoomLevel,
   activeToolbarId,
   toolbarSystemActivated,
+  selectionColor,
+  hoverColor,
   onSetActiveToolbar,
   onActivateToolbarSystem,
   onObjectHoverEnter,
@@ -104,6 +108,8 @@ export function ObjectsLayer({
           hoveredBySelectionIds={hoveredBySelectionIds}
           activeToolbarId={activeToolbarId}
           isMultiSelect={isMultiSelect}
+          selectionColor={selectionColor}
+          hoverColor={hoverColor}
           onSetActiveToolbar={onSetActiveToolbar}
           onActivateToolbarSystem={onActivateToolbarSystem}
           onObjectHoverEnter={onObjectHoverEnter}

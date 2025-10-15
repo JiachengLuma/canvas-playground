@@ -4,7 +4,8 @@
  */
 
 import { CanvasNativeType, ArtifactType } from "../../types";
-import { ChevronDown, BookOpen } from "lucide-react";
+import { ChevronDown, BookOpen, Palette } from "lucide-react";
+import { ColorTheme } from "../../hooks/useColorTheme";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,8 @@ interface HeaderToolbarProps {
   onAddFrame: () => void;
   onAddAgentFrame: () => void;
   onOpenDocumentation?: () => void;
+  colorTheme?: ColorTheme;
+  onToggleColorTheme?: () => void;
 }
 
 export function HeaderToolbar({
@@ -29,6 +32,8 @@ export function HeaderToolbar({
   onAddFrame,
   onAddAgentFrame,
   onOpenDocumentation,
+  colorTheme = "black",
+  onToggleColorTheme,
 }: HeaderToolbarProps) {
   return (
     <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm border-b">
@@ -123,8 +128,22 @@ export function HeaderToolbar({
         </Button>
       </div>
 
-      {/* Right side - Documentation */}
+      {/* Right side - Color Theme Toggle & Documentation */}
       <div className="flex gap-2">
+        {onToggleColorTheme && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={onToggleColorTheme}
+            title={`Switch to ${
+              colorTheme === "blue" ? "black" : "blue"
+            } theme`}
+          >
+            <Palette className="h-4 w-4" />
+            {colorTheme === "blue" ? "Blue" : "Black"}
+          </Button>
+        )}
         {onOpenDocumentation && (
           <Button
             variant="outline"
