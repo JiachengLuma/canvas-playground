@@ -10,11 +10,13 @@ import {
   FileText,
 } from "lucide-react";
 import { CanvasObject as CanvasObjectType, ArtifactType } from "../types";
+import { VideoPlayer } from "./VideoPlayer";
 import { shouldShowMetadata } from "../config/behaviorConfig";
 import { AgentFrameHeader } from "./AgentFrameEffects";
 import {
   shouldShowObjectMetadata,
   shouldShowAllCornerHandles,
+  getSelectionGap,
 } from "../utils/canvasUtils";
 
 interface CanvasObjectProps {
@@ -94,7 +96,6 @@ export function CanvasObject({
   const hasMovedDuringDrag = useRef(false);
   const dragStartPos = useRef({ x: 0, y: 0, altKey: false });
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
 
   // Listen for Shift key to show proportional scale mode
@@ -243,29 +244,20 @@ export function CanvasObject({
     setIsHovered(true);
     onObjectHoverEnter(object.id); // Notify parent that we're hovering an object
 
-    // Auto-play video on hover
-    if (object.type === "video" && videoRef.current) {
-      videoRef.current.play().catch(() => {
-        // Ignore play errors (e.g., if video isn't loaded yet)
-      });
-    }
-
     // Toolbar activation removed - toolbar only shows on click/selection
+    // Video auto-play is now handled in VideoPlayer component
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
-
-    // Pause video on hover leave
-    if (object.type === "video" && videoRef.current) {
-      videoRef.current.pause();
-    }
 
     // Clear the timeout if mouse leaves before the hover delay completes
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
+
+    // Video pause is now handled in VideoPlayer component
 
     // Only hide toolbar if object is NOT selected
     // Selected objects should keep their toolbar visible
@@ -337,78 +329,17 @@ export function CanvasObject({
 
         const videoObj = object as any;
         const duration = videoObj.duration || 0;
-        const durationText =
-          duration >= 60
-            ? `${Math.floor(duration / 60)}m ${duration % 60}s`
-            : `${duration}s`;
-
-        // Elegant zoom-aware scaling for duration badge - SMALLER SIZE
-        // Instead of linear 1/zoom, use a clamped inverse that prevents extremes
-        // At high zoom (>1): scale up proportionally to maintain viewport size
-        // At medium zoom (0.5-1): scale moderately
-        // At low zoom (<0.5): limit scaling to prevent badge from dominating
-        const getZoomAwareSize = (
-          baseSize: number,
-          minScale = 1,
-          maxScale = 4
-        ) => {
-          const scale = 1 / Math.max(zoomLevel, 0.25); // Clamp minimum zoom to 0.25 (prevents 10x scaling at 10% zoom)
-          const clampedScale = Math.min(Math.max(scale, minScale), maxScale);
-          return baseSize * clampedScale;
-        };
-
-        // Responsive positioning: stays near corner but scales gracefully
-        const badgeInset = getZoomAwareSize(8, 1, 3); // 8px base, max 24px at extreme zoom
-        const badgeFontSize = getZoomAwareSize(12, 1, 2.5); // SMALLER: 12px base (was 16px)
-        const badgeLineHeight = badgeFontSize * 1.3; // Maintain proportional line-height
-        const badgePaddingX = getZoomAwareSize(8, 1, 2); // SMALLER: 8px base (was 10px)
-        const badgePaddingY = getZoomAwareSize(2, 1, 2); // 2px base, max 4px
-        const badgeRadius = getZoomAwareSize(28, 1, 2); // 28px base, max 56px
-        const badgeBlur = Math.min(10, getZoomAwareSize(10, 1, 1.5)); // Blur stays reasonable
 
         return (
-          <div className="w-full h-full bg-black flex items-center justify-center relative">
-            <video
-              ref={videoRef}
-              src={object.content}
-              className="w-full h-full object-cover"
-              controls={isSelected}
-              loop
-              muted
-              playsInline
-            />
-
-            {/* Duration indicator - only show when NOT selected - PINNED TOP LEFT */}
-            {!isSelected && duration > 0 && (
-              <div
-                className="absolute pointer-events-none"
-                style={{
-                  left: badgeInset,
-                  top: badgeInset, // CHANGED FROM bottom to top
-                  fontSize: `${badgeFontSize}px`,
-                  lineHeight: `${badgeLineHeight}px`,
-                }}
-              >
-                <div
-                  className="flex items-center justify-center text-white font-medium"
-                  style={{
-                    backgroundColor: "rgba(106, 106, 106, 0.55)",
-                    backdropFilter: `blur(${badgeBlur}px)`,
-                    WebkitBackdropFilter: `blur(${badgeBlur}px)`,
-                    paddingLeft: `${badgePaddingX}px`,
-                    paddingRight: `${badgePaddingX}px`,
-                    paddingTop: `${badgePaddingY}px`,
-                    paddingBottom: `${badgePaddingY}px`,
-                    borderRadius: `${badgeRadius}px`,
-                    fontFamily: "Graphik, sans-serif",
-                    fontWeight: 500,
-                  }}
-                >
-                  {durationText}
-                </div>
-              </div>
-            )}
-          </div>
+          <VideoPlayer
+            src={object.content}
+            isSelected={isSelected}
+            isHovered={isHovered}
+            zoomLevel={zoomLevel}
+            width={object.width}
+            height={object.height}
+            duration={duration}
+          />
         );
       case "audio":
         // Show loading state if generating
@@ -800,8 +731,14 @@ export function CanvasObject({
   const viewportHandleSize = 12 / zoomLevel; // Slightly larger handles for better UX
   const viewportHandleBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
   const viewportColorTagSize = 16 / zoomLevel;
-  const viewportColorTagOffset = -6 / zoomLevel;
   const viewportBorderRadius = 5 / zoomLevel;
+  // Dynamic selection gap based on object size: 2px (normal), 1px (small/tiny), 0.5px (micro)
+  const selectionGapInScreenPx = getSelectionGap(
+    object.width,
+    object.height,
+    zoomLevel
+  );
+  const viewportSelectionGap = selectionGapInScreenPx / zoomLevel;
 
   // Show all 4 corner handles using unified size classification
   // Tiny objects (< 60px) show only 1 handle, others show all 4
@@ -941,7 +878,7 @@ export function CanvasObject({
             bottom: 0,
             // Use outline instead of border so it renders outside the box
             outline: `${viewportBorderWidth}px solid ${selectionColor}`,
-            outlineOffset: 0,
+            outlineOffset: viewportSelectionGap, // Dynamic gap based on object size
             borderRadius: viewportBorderRadius,
             zIndex: 10, // Above content to be visible
           }}
@@ -962,8 +899,8 @@ export function CanvasObject({
                     ease: "easeInOut",
                   }}
                   style={{
-                    top: -viewportHandleSize / 2,
-                    left: -viewportHandleSize / 2,
+                    top: -(viewportHandleSize / 2 + viewportSelectionGap),
+                    left: -(viewportHandleSize / 2 + viewportSelectionGap),
                     width: viewportHandleSize,
                     height: viewportHandleSize,
                     borderWidth: viewportHandleBorderWidth,
@@ -979,34 +916,36 @@ export function CanvasObject({
                   }}
                 />
               )}
-              {/* Top-right - ALWAYS show (even at small zoom) */}
-              <motion.div
-                className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
-                initial={false}
-                animate={{
-                  borderRadius: isShiftPressed ? "50%" : "20%",
-                }}
-                transition={{
-                  duration: 0.15,
-                  ease: "easeInOut",
-                }}
-                style={{
-                  top: -viewportHandleSize / 2,
-                  right: -viewportHandleSize / 2,
-                  width: viewportHandleSize,
-                  height: viewportHandleSize,
-                  borderWidth: viewportHandleBorderWidth,
-                  borderColor: selectionColor,
-                  borderStyle: "solid",
-                  pointerEvents: "auto",
-                  boxSizing: "border-box",
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onResizeStart("top-right", e);
-                }}
-              />
+              {/* Top-right - ALWAYS show (even at small zoom), but hide if color tag exists */}
+              {!colorTagColor && (
+                <motion.div
+                  className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
+                  initial={false}
+                  animate={{
+                    borderRadius: isShiftPressed ? "50%" : "20%",
+                  }}
+                  transition={{
+                    duration: 0.15,
+                    ease: "easeInOut",
+                  }}
+                  style={{
+                    top: -(viewportHandleSize / 2 + viewportSelectionGap),
+                    right: -(viewportHandleSize / 2 + viewportSelectionGap),
+                    width: viewportHandleSize,
+                    height: viewportHandleSize,
+                    borderWidth: viewportHandleBorderWidth,
+                    borderColor: selectionColor,
+                    borderStyle: "solid",
+                    pointerEvents: "auto",
+                    boxSizing: "border-box",
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onResizeStart("top-right", e);
+                  }}
+                />
+              )}
               {/* Bottom-left - only show when object is large enough on screen */}
               {showAllHandles && (
                 <motion.div
@@ -1020,8 +959,8 @@ export function CanvasObject({
                     ease: "easeInOut",
                   }}
                   style={{
-                    bottom: -viewportHandleSize / 2,
-                    left: -viewportHandleSize / 2,
+                    bottom: -(viewportHandleSize / 2 + viewportSelectionGap),
+                    left: -(viewportHandleSize / 2 + viewportSelectionGap),
                     width: viewportHandleSize,
                     height: viewportHandleSize,
                     borderWidth: viewportHandleBorderWidth,
@@ -1050,8 +989,8 @@ export function CanvasObject({
                     ease: "easeInOut",
                   }}
                   style={{
-                    bottom: -viewportHandleSize / 2,
-                    right: -viewportHandleSize / 2,
+                    bottom: -(viewportHandleSize / 2 + viewportSelectionGap),
+                    right: -(viewportHandleSize / 2 + viewportSelectionGap),
                     width: viewportHandleSize,
                     height: viewportHandleSize,
                     borderWidth: viewportHandleBorderWidth,
@@ -1117,19 +1056,23 @@ export function CanvasObject({
       </div>
 
       {/* Color tag dot - shown when tag is set, always visible except when THIS object is being dragged */}
+      {/* Now positioned at top-right to precisely match where the corner handle would be */}
       {colorTagColor && !(isDraggingAny && isSelected) && (
         <div
-          className="absolute rounded-full pointer-events-none"
+          className="absolute rounded-full cursor-grab hover:scale-110 active:cursor-grabbing transition-transform duration-100"
           style={{
-            top: viewportColorTagOffset,
-            left: viewportColorTagOffset,
+            // Position to match the center of where the top-right corner handle would be
+            top: -(viewportColorTagSize / 2 + viewportSelectionGap),
+            right: -(viewportColorTagSize / 2 + viewportSelectionGap),
             width: viewportColorTagSize,
             height: viewportColorTagSize,
             backgroundColor: colorTagColor,
             border: `${2 / zoomLevel}px solid white`,
             boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
             zIndex: 300, // Above everything else
+            pointerEvents: "auto", // Changed from "none" to enable dragging
           }}
+          onMouseDown={handleMouseDown} // Make it draggable
         />
       )}
 
@@ -1191,8 +1134,9 @@ export function CanvasObject({
               position: "absolute",
               right: 0,
               // Adaptive gap: closer at small zoom for better visual proximity
+              // Added 1px extra spacing (changed from 2 to 3)
               top: -(
-                (2 + 6 * Math.min(1, zoomLevel)) / zoomLevel +
+                (3 + 6 * Math.min(1, zoomLevel)) / zoomLevel +
                 12 / zoomLevel
               ),
               pointerEvents: "auto",

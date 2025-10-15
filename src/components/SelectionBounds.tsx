@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
+import { getSelectionGap } from "../utils/canvasUtils";
 
 interface SelectionBoundsProps {
   minX: number;
@@ -51,6 +52,9 @@ export function SelectionBounds({
   const viewportHandleSize = 10 / zoomLevel;
   const viewportHandleBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
   const viewportBorderRadius = 5 / zoomLevel;
+  // Dynamic selection gap based on bounds size: 2px (normal), 1px (small/tiny), 0.5px (micro)
+  const selectionGapInScreenPx = getSelectionGap(width, height, zoomLevel);
+  const viewportPadding = selectionGapInScreenPx / zoomLevel;
 
   return (
     <motion.div
@@ -60,10 +64,10 @@ export function SelectionBounds({
       transition={{ duration: 0.1, ease: "easeOut" }}
       style={{
         position: "absolute",
-        left: minX,
-        top: minY,
-        width,
-        height,
+        left: minX - viewportPadding,
+        top: minY - viewportPadding,
+        width: width + viewportPadding * 2,
+        height: height + viewportPadding * 2,
         pointerEvents: "none",
         // Use outline instead of border so it renders outside the box
         outline: `${viewportBorderWidth}px solid ${selectionColor}`,

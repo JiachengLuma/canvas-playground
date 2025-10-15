@@ -270,6 +270,12 @@ export default function App() {
     onRedo: () => {
       history.redo();
     },
+    onZoomToFit: () => {
+      // Only zoom if exactly one object is selected
+      if (selection.selectedIds.length === 1) {
+        canvasHandlers.handleZoomToFitToolbar(selection.selectedIds[0]);
+      }
+    },
   });
 
   // ===== Render =====

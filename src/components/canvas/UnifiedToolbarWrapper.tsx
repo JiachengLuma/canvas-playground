@@ -15,6 +15,7 @@ import {
   shouldShowObjectMetadata,
   shouldUseCompactToolbar,
   shouldShowToolbarUI,
+  getSelectionGap,
 } from "../../utils/canvasUtils";
 import {
   shouldShowToolbar,
@@ -168,6 +169,7 @@ export function UnifiedToolbarWrapper({
   const [promptText, setPromptText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle Enter key to activate prompt mode
   useEffect(() => {
@@ -193,6 +195,61 @@ export function UnifiedToolbarWrapper({
     }
   }, [isPromptMode]);
 
+  // Handle ESC key globally when typing bar is open
+  useEffect(() => {
+    if (!isPromptMode) return;
+
+    const handleGlobalEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        setIsPromptMode(false);
+        setPromptText("");
+      }
+    };
+
+    // Add listeners in BOTH capture and bubble phases to ensure we catch ESC
+    // before the keyboard shortcuts handler (which runs in bubble phase)
+    window.addEventListener("keydown", handleGlobalEscape, true); // Capture phase
+    window.addEventListener("keydown", handleGlobalEscape, false); // Bubble phase
+
+    return () => {
+      window.removeEventListener("keydown", handleGlobalEscape, true);
+      window.removeEventListener("keydown", handleGlobalEscape, false);
+    };
+  }, [isPromptMode]);
+
+  // Handle click outside to close prompt mode
+  useEffect(() => {
+    if (!isPromptMode) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+
+      // Check if click is outside the input container
+      // Don't check buttonContainerRef because it won't be in DOM when isPromptMode is true
+      if (
+        inputContainerRef.current &&
+        !inputContainerRef.current.contains(target)
+      ) {
+        // Reset to previous state
+        setIsPromptMode(false);
+        setPromptText("");
+      }
+    };
+
+    // Use a small delay to prevent the opening click from immediately closing
+    const timeoutId = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside, true);
+    }, 50);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener("mousedown", handleClickOutside, true);
+    };
+  }, [isPromptMode]);
+
   const handlePromptSubmit = () => {
     if (!promptText.trim()) return;
 
@@ -209,9 +266,11 @@ export function UnifiedToolbarWrapper({
   const handlePromptKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      e.stopPropagation();
       handlePromptSubmit();
     } else if (e.key === "Escape") {
       e.preventDefault();
+      e.stopPropagation(); // Prevent global Escape handler from interfering
       setIsPromptMode(false);
       setPromptText("");
     }
@@ -253,18 +312,22 @@ export function UnifiedToolbarWrapper({
     const toolbarGap = getToolbarGap(zoomLevel);
     const bottomButtonGap = getToolbarGap(zoomLevel);
 
+    // Account for selection gap to position toolbar above the selection border
+    const selectionGap = getSelectionGap(width, height, zoomLevel);
+
     // Convert to screen coordinates and position toolbar
     const centerXScreen = centerX * zoomLevel + panOffset.x;
     const boundsMinYScreen = bounds.minY * zoomLevel + panOffset.y;
     const boundsMaxYScreen = bounds.maxY * zoomLevel + panOffset.y;
 
-    // Position toolbar ABOVE, centered horizontally
+    // Position toolbar ABOVE, centered horizontally (account for selection gap)
     toolbarLeftScreen = centerXScreen;
-    toolbarTopScreen = boundsMinYScreen - toolbarGap * zoomLevel;
+    toolbarTopScreen = boundsMinYScreen - selectionGap - toolbarGap * zoomLevel;
 
-    // Position Enter button BELOW, centered horizontally
+    // Position Enter button BELOW, centered horizontally (account for selection gap)
     tabButtonLeftScreen = centerXScreen;
-    tabButtonTopScreen = boundsMaxYScreen + bottomButtonGap * zoomLevel;
+    tabButtonTopScreen =
+      boundsMaxYScreen + selectionGap + bottomButtonGap * zoomLevel;
 
     // Dimensions for compact mode check (convert to screen space)
     heightInScreenPx = height * zoomLevel;
@@ -317,16 +380,20 @@ export function UnifiedToolbarWrapper({
 
     // Position toolbar ABOVE, centered horizontally (convert canvas to screen)
     // Gap changes based on metadata visibility for smooth behavior
+    // Account for selection gap to position toolbar above the selection border
+    const selectionGap = getSelectionGap(width, height, zoomLevel) / zoomLevel; // Convert to canvas pixels
     const toolbarLeftCanvas = centerX;
-    const toolbarTopCanvas = object.y - toolbarGapFromObject - metadataOffset;
+    const toolbarTopCanvas =
+      object.y - selectionGap - toolbarGapFromObject - metadataOffset;
     toolbarLeftScreen = toolbarLeftCanvas * zoomLevel + panOffset.x;
     toolbarTopScreen = toolbarTopCanvas * zoomLevel + panOffset.y;
 
     // Position Enter button BELOW, centered horizontally (convert canvas to screen)
-    // Use standard gap for bottom button
+    // Use standard gap for bottom button + account for selection gap
     const bottomButtonGap = getToolbarGap(zoomLevel);
     const tabButtonLeftCanvas = centerX;
-    const tabButtonTopCanvas = object.y + height + bottomButtonGap;
+    const tabButtonTopCanvas =
+      object.y + height + selectionGap + bottomButtonGap;
     tabButtonLeftScreen = tabButtonLeftCanvas * zoomLevel + panOffset.x;
     tabButtonTopScreen = tabButtonTopCanvas * zoomLevel + panOffset.y;
 
@@ -360,10 +427,13 @@ export function UnifiedToolbarWrapper({
         )
       : false;
 
+  // Toolbar scale should always be 1 (no zoom scaling) for both single and multi-select
+  const toolbarScale = 1;
+
   return (
-    <AnimatePresence>
+    <>
       {/* Main toolbar - positioned ABOVE the object */}
-      {!isPromptMode && (
+      <AnimatePresence>
         <motion.div
           key="toolbar"
           initial={{ opacity: 0 }}
@@ -391,7 +461,7 @@ export function UnifiedToolbarWrapper({
               display: "flex",
               flexDirection: "row",
               alignItems: "center",
-              transform: "translate(-50%, -100%)",
+              transform: `translate(-50%, -100%) scale(${toolbarScale})`,
             }}
           >
             <ContextToolbar
@@ -461,20 +531,16 @@ export function UnifiedToolbarWrapper({
             />
           </div>
         </motion.div>
-      )}
+      </AnimatePresence>
 
       {/* Enter button / Input field - positioned BELOW the object */}
       <motion.div
-        key="enter-button"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.1, ease: "easeOut" }}
+        key="enter-button-container"
         style={{
           position: "absolute",
           left: tabButtonLeftScreen,
           top: tabButtonTopScreen,
-          transform: "translateX(-50%)",
+          transform: `translateX(-50%) scale(${toolbarScale})`,
           pointerEvents: "none",
           zIndex: 10000,
         }}
@@ -487,120 +553,130 @@ export function UnifiedToolbarWrapper({
             alignItems: "center",
           }}
         >
-          {!isPromptMode ? (
-            // Enter button - "Type..." with icon, or just icon when compact
-            shouldShowCompact ? (
-              // Compact mode: just icon in circle (smaller 20px height to match toolbar)
-              <motion.button
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setIsPromptMode(true);
-                }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ opacity: { duration: 0.1 } }}
-                className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors w-5 h-5 flex items-center justify-center"
-                style={{
-                  fontFamily: "Graphik, sans-serif",
-                  cursor: "pointer",
-                }}
-              >
-                <CornerDownLeft
-                  className="w-3 h-3"
-                  strokeWidth={2}
-                  style={{
-                    color: "rgba(0, 0, 0, 0.6)",
+          <AnimatePresence mode="wait">
+            {!isPromptMode ? (
+              // Enter button - "Type..." with icon, or just icon when compact
+              shouldShowCompact ? (
+                // Compact mode: just icon in circle (smaller 20px height to match toolbar)
+                <motion.button
+                  key="type-button-compact"
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
                   }}
-                />
-              </motion.button>
-            ) : (
-              // Full mode: text only (no icon)
-              <motion.button
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setIsPromptMode(true);
-                }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ opacity: { duration: 0.1 } }}
-                className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors px-4 h-10 flex items-center justify-center"
-                style={{
-                  fontFamily: "Graphik, sans-serif",
-                  cursor: "pointer",
-                }}
-              >
-                <span
-                  className="text-[13px] leading-[13px] font-medium whitespace-nowrap"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setIsPromptMode(true);
+                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ opacity: { duration: 0.1 } }}
+                  className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors w-5 h-5 flex items-center justify-center"
                   style={{
-                    color: "rgba(0, 0, 0, 0.7)",
+                    fontFamily: "Graphik, sans-serif",
+                    cursor: "pointer",
                   }}
                 >
-                  Type...
-                </span>
-              </motion.button>
-            )
-          ) : (
-            // Expanded input field with scale animation
-            <motion.div
-              initial={{
-                scale: 0.3,
-                opacity: 0,
-              }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{
-                scale: 0.3,
-                opacity: 0,
-              }}
-              transition={{
-                scale: { duration: 0.25, ease: [0.4, 0, 0.2, 1] },
-                opacity: { duration: 0.2 },
-              }}
-              className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] px-4 py-2 flex items-center gap-2 h-10"
-              style={{
-                fontFamily: "Graphik, sans-serif",
-                width: "240px",
-              }}
-            >
-              <input
-                ref={inputRef}
-                type="text"
-                value={promptText}
-                onChange={(e) => setPromptText(e.target.value)}
-                onKeyDown={handlePromptKeyDown}
-                placeholder="Type to direct next move..."
-                className="flex-1 bg-transparent border-none outline-none text-[15px]"
+                  <CornerDownLeft
+                    className="w-3 h-3"
+                    strokeWidth={2}
+                    style={{
+                      color: "rgba(0, 0, 0, 0.6)",
+                    }}
+                  />
+                </motion.button>
+              ) : (
+                // Full mode: text only (no icon)
+                <motion.button
+                  key="type-button-full"
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setIsPromptMode(true);
+                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ opacity: { duration: 0.1 } }}
+                  className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors px-4 h-10 flex items-center justify-center"
+                  style={{
+                    fontFamily: "Graphik, sans-serif",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    className="text-[13px] leading-[13px] font-medium whitespace-nowrap"
+                    style={{
+                      color: "rgba(0, 0, 0, 0.7)",
+                    }}
+                  >
+                    Type...
+                  </span>
+                </motion.button>
+              )
+            ) : (
+              // Expanded input field with scale animation
+              <motion.div
+                key="prompt-input"
+                ref={inputContainerRef}
+                initial={{
+                  scale: 0.3,
+                  opacity: 0,
+                }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{
+                  scale: 0.3,
+                  opacity: 0,
+                }}
+                transition={{
+                  scale: { duration: 0.25, ease: [0.4, 0, 0.2, 1] },
+                  opacity: { duration: 0.2 },
+                }}
+                className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] flex items-center gap-2 h-10"
                 style={{
-                  color: "rgba(0, 0, 0, 0.9)",
+                  fontFamily: "Graphik, sans-serif",
+                  width: "240px",
+                  paddingLeft: "16px",
+                  paddingRight: "8px",
+                  paddingTop: "8px",
+                  paddingBottom: "8px",
                 }}
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-              />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePromptSubmit();
-                }}
-                disabled={!promptText.trim()}
-                className="flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 transition-colors w-7 h-7 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <ArrowUp className="w-4 h-4" strokeWidth={2} />
-              </button>
-            </motion.div>
-          )}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={promptText}
+                  onChange={(e) => setPromptText(e.target.value)}
+                  onKeyDown={handlePromptKeyDown}
+                  placeholder="Type to direct next move..."
+                  className="flex-1 bg-transparent border-none outline-none text-[15px]"
+                  style={{
+                    color: "rgba(0, 0, 0, 0.9)",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePromptSubmit();
+                  }}
+                  disabled={!promptText.trim()}
+                  className="flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 transition-colors w-7 h-7 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ArrowUp className="w-4 h-4" strokeWidth={2} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
-    </AnimatePresence>
+    </>
   );
 }

@@ -269,6 +269,32 @@ export function getUISizeState(
 }
 
 /**
+ * Get selection gap based on object size
+ * Returns gap in screen pixels:
+ * - Normal (larger objects): 2px
+ * - Small and Tiny: 1px
+ * - Micro: 0.5px
+ */
+export function getSelectionGap(
+  objectWidth: number,
+  objectHeight: number,
+  zoomLevel: number
+): number {
+  const sizeState = getUISizeState(objectWidth, objectHeight, zoomLevel);
+  
+  switch (sizeState) {
+    case 'micro':
+      return 0.5;
+    case 'tiny':
+    case 'small':
+      return 1;
+    case 'normal':
+    default:
+      return 2;
+  }
+}
+
+/**
  * Check if object should show metadata header (heading)
  * Only shown in 'normal' state
  */
@@ -337,12 +363,12 @@ export function shouldShowDragHandleUI(
  */
 export function getMetadataHeaderHeight(zoomLevel: number): number {
   // The metadata header positioning is:
-  // top: -((2 + 6 * Math.min(1, zoomLevel)) / zoomLevel + 12 / zoomLevel)
+  // top: -((3 + 6 * Math.min(1, zoomLevel)) / zoomLevel + 12 / zoomLevel)
   // This breaks down to:
-  // - Gap: (2 + 6 * Math.min(1, zoomLevel)) / zoomLevel
+  // - Gap: (3 + 6 * Math.min(1, zoomLevel)) / zoomLevel (added 1px spacing)
   // - Font height: 12 / zoomLevel
   
-  const gap = (2 + 6 * Math.min(1, zoomLevel)) / zoomLevel;
+  const gap = (3 + 6 * Math.min(1, zoomLevel)) / zoomLevel;
   const fontSize = 12 / zoomLevel;
   
   return gap + fontSize;

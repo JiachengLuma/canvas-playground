@@ -13,7 +13,10 @@ import { FrameDrawingBox } from "../FrameDrawingBox";
 import { DragHandle } from "../DragHandle";
 import { UnifiedToolbarWrapper } from "./UnifiedToolbarWrapper";
 import { shouldShowDragHandle } from "../../config/behaviorConfig";
-import { shouldShowDragHandleUI } from "../../utils/canvasUtils";
+import {
+  shouldShowDragHandleUI,
+  getSelectionGap,
+} from "../../utils/canvasUtils";
 
 export interface CanvasLayerProps {
   // Canvas ref
@@ -384,20 +387,29 @@ export function CanvasLayer({
           !(
             activeObject.type === "frame" &&
             (activeObject as any).isAgentCreating
-          ) && (
-            <DragHandle
-              x={activeObject.x * zoomLevel + panOffset.x}
-              y={activeObject.y * zoomLevel + panOffset.y}
-              width={activeObject.width * zoomLevel}
-              height={activeObject.height * zoomLevel}
-              rotation={0}
-              side={dragHandleSide}
-              selectionColor={selectionColor}
-              onDragStart={onDragHandleStart}
-              onMouseEnter={onToolbarHoverEnter}
-              onMouseLeave={onToolbarHoverLeave}
-            />
-          )}
+          ) &&
+          (() => {
+            // Calculate dynamic selection gap for drag handle positioning
+            const dragHandleGap = getSelectionGap(
+              activeObject.width,
+              activeObject.height,
+              zoomLevel
+            );
+            return (
+              <DragHandle
+                x={activeObject.x * zoomLevel + panOffset.x - dragHandleGap}
+                y={activeObject.y * zoomLevel + panOffset.y - dragHandleGap}
+                width={activeObject.width * zoomLevel + dragHandleGap * 2}
+                height={activeObject.height * zoomLevel + dragHandleGap * 2}
+                rotation={0}
+                side={dragHandleSide}
+                selectionColor={selectionColor}
+                onDragStart={onDragHandleStart}
+                onMouseEnter={onToolbarHoverEnter}
+                onMouseLeave={onToolbarHoverLeave}
+              />
+            );
+          })()}
       </AnimatePresence>
 
       {/* Single Object Toolbar - rendered outside transform wrapper */}
