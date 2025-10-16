@@ -182,7 +182,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (isDragging) {
       // Store playing state before pausing
       wasPlayingBeforeDrag.current = !video.paused;
-      console.log("[VideoPlayer] Dragging - pausing video, wasPlaying:", wasPlayingBeforeDrag.current);
+      console.log(
+        "[VideoPlayer] Dragging - pausing video, wasPlaying:",
+        wasPlayingBeforeDrag.current
+      );
       video.pause();
     } else if (wasPlayingBeforeDrag.current) {
       // Resume playing if it was playing before drag
@@ -595,6 +598,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 />
               </div>
 
+              {/* Duration text (simple format like "5s") */}
+              <div
+                className="text-white font-medium"
+                style={{
+                  fontSize: `${fontSize}px`,
+                  lineHeight: `${lineHeight}px`,
+                  opacity: 0.9,
+                }}
+              >
+                {durationText}
+              </div>
+
               {/* Audio wave icon - only show if video has audio */}
               {hasAudio && (
                 <div
@@ -613,18 +628,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   />
                 </div>
               )}
-
-              {/* Duration text (simple format like "5s") */}
-              <div
-                className="text-white font-medium"
-                style={{
-                  fontSize: `${fontSize}px`,
-                  lineHeight: `${lineHeight}px`,
-                  opacity: 0.9,
-                }}
-              >
-                {durationText}
-              </div>
             </div>
           </motion.div>
         )}
