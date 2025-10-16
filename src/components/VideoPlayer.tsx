@@ -173,14 +173,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [isSelected, pauseOnSelect]);
 
-  // Pause video when dragging
+  // Pause video when dragging, resume if it was playing
+  const wasPlayingBeforeDrag = useRef(false);
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     if (isDragging) {
-      console.log("[VideoPlayer] Dragging - pausing video");
+      // Store playing state before pausing
+      wasPlayingBeforeDrag.current = !video.paused;
+      console.log("[VideoPlayer] Dragging - pausing video, wasPlaying:", wasPlayingBeforeDrag.current);
       video.pause();
+    } else if (wasPlayingBeforeDrag.current) {
+      // Resume playing if it was playing before drag
+      console.log("[VideoPlayer] Drag ended - resuming playback");
+      video.play().catch(() => {});
+      wasPlayingBeforeDrag.current = false;
     }
   }, [isDragging]);
 
