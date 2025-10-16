@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, AudioLines } from "lucide-react";
 import { motion } from "framer-motion";
 import { getUISizeState } from "../utils/canvasUtils";
 
@@ -11,6 +11,9 @@ interface VideoPlayerProps {
   width: number;
   height: number;
   duration?: number;
+  pauseOnSelect?: boolean;
+  isDragging?: boolean;
+  hasAudio?: boolean; // Whether this video has audio track
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -21,6 +24,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   width,
   height,
   duration = 0,
+  pauseOnSelect = false,
+  isDragging = false,
+  hasAudio = false,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
@@ -30,10 +36,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [videoDuration, setVideoDuration] = useState(duration);
   const [isProgressBarHovered, setIsProgressBarHovered] = useState(false);
   const [scrubPreviewTime, setScrubPreviewTime] = useState<number | null>(null);
+  const [isMuted, setIsMuted] = useState(false); // Start unmuted (will auto-unmute on select if hasAudio)
   const animationFrameRef = useRef<number | null>(null);
   const wasPlayingBeforeSelection = useRef(false);
   const isSelecting = useRef(false);
   const justSelected = useRef(false);
+  const hoverSeekTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [hoverSeekPosition, setHoverSeekPosition] = useState<number | null>(
+    null
+  );
+  const [isHoveringSeekArea, setIsHoveringSeekArea] = useState(false);
 
   // Smooth progress bar animation using requestAnimationFrame
   useEffect(() => {
@@ -80,20 +92,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
   }, []);
 
-  // Auto-play on hover (when not selected)
+  // Auto-play on hover (when not selected) - only if not hovering seek area
   useEffect(() => {
     const video = videoRef.current;
     if (!video || isSelected) return;
 
-    if (isHovered) {
-      console.log("[VideoPlayer] Hover - playing video");
+    if (isHovered && !isHoveringSeekArea) {
+      console.log("[VideoPlayer] Hover (top half) - playing video");
       video.play().catch(() => {
         // Ignore play errors
       });
       wasPlayingBeforeSelection.current = true;
-    } else {
-      // Pause on hover leave ONLY if not in process of selecting
-      if (!isSelecting.current) {
+    } else if (!isHovered) {
+      // Pause on hover leave ONLY if:
+      // 1. Not in process of selecting OR
+      // 2. pauseOnSelect is true (user wants pause behavior)
+      if (!isSelecting.current || pauseOnSelect) {
         console.log("[VideoPlayer] Hover leave - pausing video");
         video.pause();
         wasPlayingBeforeSelection.current = false;
@@ -101,16 +115,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         console.log("[VideoPlayer] Hover leave - BLOCKED by isSelecting flag");
       }
     }
-  }, [isHovered, isSelected]);
+  }, [isHovered, isSelected, pauseOnSelect, isHoveringSeekArea]);
 
-  // Keep playing when selected
+  // Keep playing when selected (based on pauseOnSelect setting)
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     if (isSelected) {
       console.log(
-        "[VideoPlayer] Selected! wasPlayingBeforeSelection:",
+        "[VideoPlayer] Selected! pauseOnSelect:",
+        pauseOnSelect,
+        "wasPlayingBeforeSelection:",
         wasPlayingBeforeSelection.current
       );
       console.log("[VideoPlayer] Video paused state:", video.paused);
@@ -118,9 +134,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       // Set justSelected flag to ignore the first click event
       justSelected.current = true;
 
-      // If was playing before selection, aggressively keep it playing
-      if (wasPlayingBeforeSelection.current) {
-        console.log("[VideoPlayer] Forcing video to play...");
+      // If pauseOnSelect is FALSE and was playing before selection, keep it playing
+      if (!pauseOnSelect && wasPlayingBeforeSelection.current) {
+        console.log("[VideoPlayer] Forcing video to keep playing...");
         // Force multiple times to override any pause attempts
         video.play().catch(() => {});
         setTimeout(() => {
@@ -135,6 +151,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             video.play().catch(() => {});
           }
         }, 50);
+      } else if (pauseOnSelect && wasPlayingBeforeSelection.current) {
+        console.log("[VideoPlayer] pauseOnSelect is TRUE - pausing video");
+        video.pause();
       }
 
       // Clear flags after selection is complete
@@ -152,7 +171,50 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       isSelecting.current = false;
       justSelected.current = false;
     }
-  }, [isSelected]);
+  }, [isSelected, pauseOnSelect]);
+
+  // Pause video when dragging
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isDragging) {
+      console.log("[VideoPlayer] Dragging - pausing video");
+      video.pause();
+    }
+  }, [isDragging]);
+
+  // Control audio based on state
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !hasAudio) return;
+
+    // Audio rules:
+    // - Hover play: always muted
+    // - Selected (including seek/scrub): respect user's mute preference
+    let shouldBeMuted = true;
+
+    if (isSelected) {
+      // Selected - respect user's mute preference (allow sound during seek)
+      shouldBeMuted = isMuted;
+    } else {
+      // Hovering - always muted
+      shouldBeMuted = true;
+    }
+
+    video.muted = shouldBeMuted;
+
+    console.log(
+      "[VideoPlayer] Audio - hasAudio:",
+      hasAudio,
+      "selected:",
+      isSelected,
+      "userMuted:",
+      isMuted,
+      "=> muted:",
+      shouldBeMuted
+    );
+  }, [isSelected, hasAudio, isMuted]);
 
   // Format duration
   const formatTime = (seconds: number, includeUnit = true) => {
@@ -185,6 +247,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const previewProgress =
     scrubPreviewTime !== null && videoDuration > 0
       ? (scrubPreviewTime / videoDuration) * 100
+      : hoverSeekPosition !== null && videoDuration > 0
+      ? (hoverSeekPosition / videoDuration) * 100
       : progress;
 
   // Calculate scale-aware sizing
@@ -223,19 +287,47 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Handle seek area hover for scrub preview (bottom 50% of video)
   const handleSeekAreaMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!seekAreaRef.current || !isSelected || !videoRef.current) return;
+    if (!seekAreaRef.current || !videoRef.current) return;
 
     const rect = seekAreaRef.current.getBoundingClientRect();
     const hoverX = e.clientX - rect.left;
     const percentage = Math.max(0, Math.min(1, hoverX / rect.width));
     const previewTime = percentage * videoDuration;
 
-    setScrubPreviewTime(previewTime);
-    setIsProgressBarHovered(true);
+    if (isSelected) {
+      // Selected mode: instant scrubbing
+      setScrubPreviewTime(previewTime);
+      setIsProgressBarHovered(true);
+      videoRef.current.currentTime = previewTime;
+      setCurrentTime(previewTime);
+    } else {
+      // Hover mode: scrub immediately but pause, then resume on dwell
+      setIsHoveringSeekArea(true); // Mark that we're in seek area
+      setHoverSeekPosition(previewTime);
+      setIsProgressBarHovered(true);
 
-    // Actually seek the video to the preview position
-    videoRef.current.currentTime = previewTime;
-    setCurrentTime(previewTime);
+      // Pause and seek immediately
+      videoRef.current.pause();
+      videoRef.current.currentTime = previewTime;
+      setCurrentTime(previewTime);
+
+      // Clear existing timeout
+      if (hoverSeekTimeoutRef.current) {
+        clearTimeout(hoverSeekTimeoutRef.current);
+      }
+
+      // Set new timeout to resume playing after dwell (500ms)
+      hoverSeekTimeoutRef.current = setTimeout(() => {
+        if (videoRef.current) {
+          console.log(
+            "[VideoPlayer] Hover dwell - resuming play from:",
+            previewTime
+          );
+          videoRef.current.play().catch(() => {});
+          setHoverSeekPosition(null);
+        }
+      }, 500);
+    }
   };
 
   // Handle seek area click for scrubbing
@@ -259,6 +351,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const handleSeekAreaMouseLeave = () => {
     setIsProgressBarHovered(false);
     setScrubPreviewTime(null);
+    setHoverSeekPosition(null);
+    setIsHoveringSeekArea(false); // No longer in seek area
+
+    // Clear hover seek timeout and resume playing if in hover mode
+    if (hoverSeekTimeoutRef.current) {
+      clearTimeout(hoverSeekTimeoutRef.current);
+      hoverSeekTimeoutRef.current = null;
+
+      // If in hover mode (not selected), resume playing
+      if (!isSelected && videoRef.current) {
+        videoRef.current.play().catch(() => {});
+      }
+    }
   };
 
   // Handle play icon click
@@ -273,6 +378,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       videoRef.current.pause();
       wasPlayingBeforeSelection.current = false;
     }
+  };
+
+  // Handle mute toggle
+  const handleMuteToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMuted(!isMuted);
   };
 
   // Handle mouse down - set flag BEFORE hover state changes
@@ -342,7 +453,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         src={src}
         className="w-full h-full object-cover"
         loop
-        muted
         playsInline
         disablePictureInPicture
         disableRemotePlayback
@@ -433,6 +543,25 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   }}
                 />
               </div>
+
+              {/* Audio wave icon - only show if video has audio */}
+              {hasAudio && (
+                <div
+                  className="flex items-center justify-center text-white"
+                  style={{
+                    fontSize: `${iconSize}px`,
+                    lineHeight: `${iconSize}px`,
+                  }}
+                >
+                  <AudioLines
+                    className="text-white"
+                    style={{
+                      width: `${iconSize}px`,
+                      height: `${iconSize}px`,
+                    }}
+                  />
+                </div>
+              )}
 
               {/* Duration text (simple format like "5s") */}
               <div
@@ -528,16 +657,70 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </motion.div>
         )}
 
-        {/* Large seek area - bottom 50% of video (only when selected) */}
-        {isSelected && showProgressBar && (
+        {/* Audio control button - only show when selected and has audio */}
+        {isSelected && hasAudio && showIconAndTime && (
+          <motion.div
+            className="absolute pointer-events-auto"
+            style={{
+              right: `${pillInset}px`,
+              bottom: `${adjustedPillBottom}px`,
+            }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+            }}
+            transition={{
+              duration: 0.2,
+              ease: "easeOut",
+            }}
+          >
+            <button
+              onClick={handleMuteToggle}
+              className="flex items-center justify-center text-white hover:opacity-80 transition-opacity"
+              style={{
+                padding: `${pillPaddingY}px ${pillPaddingX}px`,
+                borderRadius: `${pillRadius}px`,
+                backgroundColor: "transparent",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              {isMuted ? (
+                <VolumeX
+                  style={{
+                    width: `${iconSize}px`,
+                    height: `${iconSize}px`,
+                  }}
+                />
+              ) : (
+                <Volume2
+                  style={{
+                    width: `${iconSize}px`,
+                    height: `${iconSize}px`,
+                  }}
+                />
+              )}
+            </button>
+          </motion.div>
+        )}
+
+        {/* Large seek area - bottom 40% of video, excluding control buttons */}
+        {showProgressBar && (
           <div
             ref={seekAreaRef}
             className="absolute cursor-pointer"
             style={{
-              left: 0,
-              right: 0,
+              // Start after the play pill, end before the mute button
+              left: showIconAndTime
+                ? `${pillInset + (iconSize + pillPaddingX * 2) + pillGap}px`
+                : 0,
+              right:
+                hasAudio && showIconAndTime
+                  ? `${pillInset + (iconSize + pillPaddingX * 2) + pillGap}px`
+                  : 0,
               bottom: 0,
-              height: "50%",
+              height: "40%",
             }}
             onClick={handleSeekAreaClick}
             onMouseMove={handleSeekAreaMouseMove}
@@ -608,8 +791,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               }}
             />
 
-            {/* Actual playback progress indicator (thin line when scrubbing) */}
-            {scrubPreviewTime !== null && (
+            {/* Actual playback progress indicator (thin line when scrubbing or hover seeking) */}
+            {(scrubPreviewTime !== null || hoverSeekPosition !== null) && (
               <div
                 className="absolute left-0 bg-white"
                 style={{

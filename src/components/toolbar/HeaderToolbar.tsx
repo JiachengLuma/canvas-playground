@@ -4,7 +4,7 @@
  */
 
 import { CanvasNativeType, ArtifactType } from "../../types";
-import { ChevronDown, BookOpen, Palette } from "lucide-react";
+import { ChevronDown, BookOpen, Palette, Play } from "lucide-react";
 import { ColorTheme } from "../../hooks/useColorTheme";
 import {
   DropdownMenu,
@@ -23,6 +23,8 @@ interface HeaderToolbarProps {
   onOpenDocumentation?: () => void;
   colorTheme?: ColorTheme;
   onToggleColorTheme?: () => void;
+  videoPauseOnSelect?: boolean;
+  onToggleVideoPauseOnSelect?: () => void;
 }
 
 export function HeaderToolbar({
@@ -34,6 +36,8 @@ export function HeaderToolbar({
   onOpenDocumentation,
   colorTheme = "black",
   onToggleColorTheme,
+  videoPauseOnSelect = false,
+  onToggleVideoPauseOnSelect,
 }: HeaderToolbarProps) {
   return (
     <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm border-b">
@@ -128,8 +132,22 @@ export function HeaderToolbar({
         </Button>
       </div>
 
-      {/* Right side - Color Theme Toggle & Documentation */}
+      {/* Right side - Settings & Documentation */}
       <div className="flex gap-2">
+        {onToggleVideoPauseOnSelect && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={onToggleVideoPauseOnSelect}
+            title={`Video on select: ${
+              videoPauseOnSelect ? "Pause" : "Keep Playing"
+            }`}
+          >
+            <Play className="h-4 w-4" />
+            {videoPauseOnSelect ? "Pause" : "Play"}
+          </Button>
+        )}
         {onToggleColorTheme && (
           <Button
             variant="outline"

@@ -19,6 +19,7 @@ interface ObjectsLayerProps {
   toolbarSystemActivated: boolean;
   selectionColor: string;
   hoverColor: string;
+  videoPauseOnSelect?: boolean;
   onSetActiveToolbar: (id: string | null) => void;
   onActivateToolbarSystem: () => void;
   onObjectHoverEnter: () => void;
@@ -48,6 +49,7 @@ export function ObjectsLayer({
   toolbarSystemActivated,
   selectionColor,
   hoverColor,
+  videoPauseOnSelect = false,
   onSetActiveToolbar,
   onActivateToolbarSystem,
   onObjectHoverEnter,
@@ -110,6 +112,7 @@ export function ObjectsLayer({
           isMultiSelect={isMultiSelect}
           selectionColor={selectionColor}
           hoverColor={hoverColor}
+          videoPauseOnSelect={videoPauseOnSelect}
           onSetActiveToolbar={onSetActiveToolbar}
           onActivateToolbarSystem={onActivateToolbarSystem}
           onObjectHoverEnter={onObjectHoverEnter}

@@ -142,6 +142,7 @@ export interface VideoObject extends BaseCanvasObject {
   content: string; // URL
   duration?: number;
   thumbnail?: string;
+  hasAudio?: boolean; // Whether video has an audio track
 }
 
 export interface AudioObject extends BaseCanvasObject {

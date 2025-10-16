@@ -59,6 +59,7 @@ export default function App() {
   const contextMenuState = useContextMenu();
   const [showDocumentation, setShowDocumentation] = useState(false);
   const colorTheme = useColorTheme();
+  const [videoPauseOnSelect, setVideoPauseOnSelect] = useState(false);
 
   // ===== Wheel Event Handling =====
   useWheel({
@@ -303,6 +304,10 @@ export default function App() {
         onOpenDocumentation={() => setShowDocumentation(true)}
         colorTheme={colorTheme.theme}
         onToggleColorTheme={colorTheme.toggleTheme}
+        videoPauseOnSelect={videoPauseOnSelect}
+        onToggleVideoPauseOnSelect={() =>
+          setVideoPauseOnSelect(!videoPauseOnSelect)
+        }
       />
 
       {/* Canvas */}
@@ -331,6 +336,7 @@ export default function App() {
         hoverColor={colorTheme.hoverColor}
         activeToolbarId={toolbar.activeToolbarId}
         toolbarSystemActivated={toolbar.toolbarSystemActivated}
+        videoPauseOnSelect={videoPauseOnSelect}
         onCanvasMouseDown={mouseHandlers.handleCanvasMouseDown}
         onCanvasMouseMove={mouseHandlers.handleCanvasMouseMove}
         onCanvasMouseUp={mouseHandlers.handleCanvasMouseUp}

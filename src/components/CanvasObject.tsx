@@ -39,6 +39,7 @@ interface CanvasObjectProps {
   isMultiSelect?: boolean;
   selectionColor: string;
   hoverColor: string;
+  videoPauseOnSelect?: boolean;
   onSetActiveToolbar: (id: string | null) => void;
   onActivateToolbarSystem: () => void;
   onObjectHoverEnter: (id: string) => void;
@@ -74,6 +75,7 @@ export function CanvasObject({
   isMultiSelect,
   selectionColor,
   hoverColor,
+  videoPauseOnSelect = false,
   onSetActiveToolbar,
   onActivateToolbarSystem,
   onObjectHoverEnter,
@@ -329,6 +331,7 @@ export function CanvasObject({
 
         const videoObj = object as any;
         const duration = videoObj.duration || 0;
+        const hasAudio = videoObj.hasAudio || false;
 
         return (
           <VideoPlayer
@@ -339,6 +342,9 @@ export function CanvasObject({
             width={object.width}
             height={object.height}
             duration={duration}
+            pauseOnSelect={videoPauseOnSelect}
+            isDragging={isDraggingAny}
+            hasAudio={hasAudio}
           />
         );
       case "audio":
@@ -892,7 +898,7 @@ export function CanvasObject({
                   className="absolute bg-white cursor-nwse-resize hover:bg-gray-50"
                   initial={false}
                   animate={{
-                    borderRadius: isShiftPressed ? "50%" : "20%",
+                    borderRadius: isShiftPressed ? "20%" : "50%", // Round by default, square when Shift
                   }}
                   transition={{
                     duration: 0.15,
@@ -922,7 +928,7 @@ export function CanvasObject({
                   className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
                   initial={false}
                   animate={{
-                    borderRadius: isShiftPressed ? "50%" : "20%",
+                    borderRadius: isShiftPressed ? "20%" : "50%", // Round by default, square when Shift
                   }}
                   transition={{
                     duration: 0.15,
@@ -952,7 +958,7 @@ export function CanvasObject({
                   className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
                   initial={false}
                   animate={{
-                    borderRadius: isShiftPressed ? "50%" : "20%",
+                    borderRadius: isShiftPressed ? "20%" : "50%", // Round by default, square when Shift
                   }}
                   transition={{
                     duration: 0.15,
@@ -982,7 +988,7 @@ export function CanvasObject({
                   className="absolute bg-white cursor-nwse-resize hover:bg-gray-50"
                   initial={false}
                   animate={{
-                    borderRadius: isShiftPressed ? "50%" : "20%",
+                    borderRadius: isShiftPressed ? "20%" : "50%", // Round by default, square when Shift
                   }}
                   transition={{
                     duration: 0.15,
@@ -1056,10 +1062,18 @@ export function CanvasObject({
       </div>
 
       {/* Color tag dot - shown when tag is set, always visible except when THIS object is being dragged */}
-      {/* Now positioned at top-right to precisely match where the corner handle would be */}
-      {colorTagColor && !(isDraggingAny && isSelected) && (
-        <div
-          className="absolute rounded-full cursor-grab hover:scale-110 active:cursor-grabbing transition-transform duration-100"
+      {/* Now positioned at top-right and functions as a resize handle */}
+      {colorTagColor && !(isDraggingAny && isSelected) && onResizeStart && (
+        <motion.div
+          className="absolute cursor-nesw-resize hover:scale-110 transition-transform duration-100"
+          initial={false}
+          animate={{
+            borderRadius: isShiftPressed ? "20%" : "50%", // Round by default, square when Shift pressed
+          }}
+          transition={{
+            duration: 0.15,
+            ease: "easeInOut",
+          }}
           style={{
             // Position to match the center of where the top-right corner handle would be
             top: -(viewportColorTagSize / 2 + viewportSelectionGap),
@@ -1070,9 +1084,14 @@ export function CanvasObject({
             border: `${2 / zoomLevel}px solid white`,
             boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
             zIndex: 300, // Above everything else
-            pointerEvents: "auto", // Changed from "none" to enable dragging
+            pointerEvents: "auto",
+            boxSizing: "border-box",
           }}
-          onMouseDown={handleMouseDown} // Make it draggable
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onResizeStart("top-right", e); // Function as resize handle
+          }}
         />
       )}
 

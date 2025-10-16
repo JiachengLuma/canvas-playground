@@ -434,103 +434,105 @@ export function UnifiedToolbarWrapper({
     <>
       {/* Main toolbar - positioned ABOVE the object */}
       <AnimatePresence>
-        <motion.div
-          key="toolbar"
-          initial={{ opacity: 0 }}
-          animate={{
-            opacity: 1,
-          }}
-          exit={{ opacity: 0 }}
-          transition={{
-            opacity: { duration: 0.1, ease: "easeOut" },
-          }}
-          style={{
-            position: "absolute",
-            left: toolbarLeftScreen,
-            top: toolbarTopScreen,
-            pointerEvents: "none",
-            zIndex: 10000,
-          }}
-          onMouseEnter={onToolbarHoverEnter}
-          onMouseLeave={onToolbarHoverLeave}
-        >
-          <div
-            ref={toolbarRef}
-            style={{
-              pointerEvents: "auto",
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              transform: `translate(-50%, -100%) scale(${toolbarScale})`,
+        {!isPromptMode && (
+          <motion.div
+            key="toolbar"
+            initial={{ opacity: 0 }}
+            animate={{
+              opacity: 1,
             }}
+            exit={{ opacity: 0 }}
+            transition={{
+              opacity: { duration: 0.08, ease: "easeOut" },
+            }}
+            style={{
+              position: "absolute",
+              left: toolbarLeftScreen,
+              top: toolbarTopScreen,
+              pointerEvents: "none",
+              zIndex: 10000,
+            }}
+            onMouseEnter={onToolbarHoverEnter}
+            onMouseLeave={onToolbarHoverLeave}
           >
-            <ContextToolbar
-              objectTypes={objectTypes as any}
-              isMultiSelect={mode === "multi"}
-              objectWidth={widthInScreenPx}
-              activeObject={mode === "single" ? object : undefined}
-              onZoomToFit={
-                mode === "single" && object
-                  ? () => onZoomToFit?.(object.id)
-                  : undefined
-              }
-              colorTag={colorTag as any}
-              onColorTagChange={
-                mode === "multi"
-                  ? onMultiColorTagChange
-                  : mode === "single" && object
-                  ? () => onColorTagChange?.(object.id)
-                  : undefined
-              }
-              onAIPrompt={
-                mode === "single" && object
-                  ? (prompt) => onAIPrompt?.(object.id, prompt)
-                  : undefined
-              }
-              onConvertToVideo={
-                mode === "single" && object
-                  ? () => onConvertToVideo?.(object.id)
-                  : undefined
-              }
-              onRerun={
-                mode === "single" && object && object.type !== "frame"
-                  ? () => onRerun?.(object.id)
-                  : undefined
-              }
-              onReframe={
-                mode === "multi"
-                  ? onFrameSelection
-                  : mode === "single" && object
-                  ? () =>
-                      object.type === "frame"
-                        ? onUnframe?.(object.id)
-                        : onReframe?.(object.id)
-                  : undefined
-              }
-              onToggleAutolayout={
-                mode === "single" && object && object.type === "frame"
-                  ? () => onToggleAutolayout?.(object.id)
-                  : undefined
-              }
-              onFrameWithAutolayout={
-                mode === "multi" ? onFrameSelectionWithAutolayout : undefined
-              }
-              onMore={
-                mode === "single" && object
-                  ? () => onMore?.(object.id)
-                  : undefined
-              }
-              onDownload={
-                mode === "single" && object
-                  ? () => onDownload?.(object.id)
-                  : undefined
-              }
-              hideTabButton={true}
-              isVertical={false}
-              forceCompact={shouldShowCompact}
-            />
-          </div>
-        </motion.div>
+            <div
+              ref={toolbarRef}
+              style={{
+                pointerEvents: "auto",
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                transform: `translate(-50%, -100%) scale(${toolbarScale})`,
+              }}
+            >
+              <ContextToolbar
+                objectTypes={objectTypes as any}
+                isMultiSelect={mode === "multi"}
+                objectWidth={widthInScreenPx}
+                activeObject={mode === "single" ? object : undefined}
+                onZoomToFit={
+                  mode === "single" && object
+                    ? () => onZoomToFit?.(object.id)
+                    : undefined
+                }
+                colorTag={colorTag as any}
+                onColorTagChange={
+                  mode === "multi"
+                    ? onMultiColorTagChange
+                    : mode === "single" && object
+                    ? () => onColorTagChange?.(object.id)
+                    : undefined
+                }
+                onAIPrompt={
+                  mode === "single" && object
+                    ? (prompt) => onAIPrompt?.(object.id, prompt)
+                    : undefined
+                }
+                onConvertToVideo={
+                  mode === "single" && object
+                    ? () => onConvertToVideo?.(object.id)
+                    : undefined
+                }
+                onRerun={
+                  mode === "single" && object && object.type !== "frame"
+                    ? () => onRerun?.(object.id)
+                    : undefined
+                }
+                onReframe={
+                  mode === "multi"
+                    ? onFrameSelection
+                    : mode === "single" && object
+                    ? () =>
+                        object.type === "frame"
+                          ? onUnframe?.(object.id)
+                          : onReframe?.(object.id)
+                    : undefined
+                }
+                onToggleAutolayout={
+                  mode === "single" && object && object.type === "frame"
+                    ? () => onToggleAutolayout?.(object.id)
+                    : undefined
+                }
+                onFrameWithAutolayout={
+                  mode === "multi" ? onFrameSelectionWithAutolayout : undefined
+                }
+                onMore={
+                  mode === "single" && object
+                    ? () => onMore?.(object.id)
+                    : undefined
+                }
+                onDownload={
+                  mode === "single" && object
+                    ? () => onDownload?.(object.id)
+                    : undefined
+                }
+                hideTabButton={true}
+                isVertical={false}
+                forceCompact={shouldShowCompact}
+              />
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Enter button / Input field - positioned BELOW the object */}
@@ -572,7 +574,7 @@ export function UnifiedToolbarWrapper({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ opacity: { duration: 0.1 } }}
+                  transition={{ opacity: { duration: 0.08 } }}
                   className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors w-5 h-5 flex items-center justify-center"
                   style={{
                     fontFamily: "Graphik, sans-serif",
@@ -603,7 +605,7 @@ export function UnifiedToolbarWrapper({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ opacity: { duration: 0.1 } }}
+                  transition={{ opacity: { duration: 0.08 } }}
                   className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] hover:bg-[#ebebeb] transition-colors px-4 h-10 flex items-center justify-center"
                   style={{
                     fontFamily: "Graphik, sans-serif",
@@ -635,8 +637,8 @@ export function UnifiedToolbarWrapper({
                   opacity: 0,
                 }}
                 transition={{
-                  scale: { duration: 0.25, ease: [0.4, 0, 0.2, 1] },
-                  opacity: { duration: 0.2 },
+                  scale: { duration: 0.15, ease: [0.4, 0, 0.2, 1] },
+                  opacity: { duration: 0.12 },
                 }}
                 className="backdrop-blur-[12px] bg-[#f6f6f6] rounded-full shadow-sm border border-black/[0.1] flex items-center gap-2 h-10"
                 style={{

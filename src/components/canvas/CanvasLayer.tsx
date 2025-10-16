@@ -57,6 +57,9 @@ export interface CanvasLayerProps {
   selectionColor: string;
   hoverColor: string;
 
+  // Video settings
+  videoPauseOnSelect?: boolean;
+
   // Event handlers
   onCanvasMouseDown: (e: React.MouseEvent) => void;
   onCanvasMouseMove: (e: React.MouseEvent) => void;
@@ -125,6 +128,7 @@ export function CanvasLayer({
   toolbarSystemActivated,
   selectionColor,
   hoverColor,
+  videoPauseOnSelect = false,
   onCanvasMouseDown,
   onCanvasMouseMove,
   onCanvasMouseUp,
@@ -287,6 +291,7 @@ export function CanvasLayer({
           toolbarSystemActivated={toolbarSystemActivated}
           selectionColor={selectionColor}
           hoverColor={hoverColor}
+          videoPauseOnSelect={videoPauseOnSelect}
           onSetActiveToolbar={onSetActiveToolbar}
           onActivateToolbarSystem={onActivateToolbarSystem}
           onObjectHoverEnter={onToolbarHoverEnter}

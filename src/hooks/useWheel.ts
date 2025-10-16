@@ -43,7 +43,7 @@ export const useWheel = ({
         const delta = -e.deltaY * 0.01;
         const newZoomLevel = Math.max(
           0.1,
-          Math.min(3, zoomLevel + delta * 0.5)
+          Math.min(4, zoomLevel + delta * 0.5)
         );
 
         // Calculate the point in canvas space that the mouse is over

@@ -103,7 +103,7 @@ export const createCanvasHandlers = (params: CanvasHandlersParams) => {
     const newZoomLevel = targetObjectWidth / obj.width;
 
     // Clamp zoom between 0.1 and 3
-    const clampedZoom = Math.max(0.1, Math.min(3, newZoomLevel));
+    const clampedZoom = Math.max(0.1, Math.min(4, newZoomLevel));
 
     setZoomLevel(clampedZoom);
 
