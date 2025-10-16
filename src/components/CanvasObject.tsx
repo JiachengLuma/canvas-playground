@@ -139,17 +139,6 @@ export function CanvasObject({
 
     e.stopPropagation();
 
-    // Check if clicking on video controls - if so, don't start drag
-    const target = e.target as HTMLElement;
-    const isClickingVideo =
-      target.tagName === "VIDEO" || target.closest("video");
-    const isVideoSelected = object.type === "video" && isSelected;
-
-    if (isClickingVideo && isVideoSelected) {
-      // Allow video controls to work, don't start drag
-      return;
-    }
-
     // Clear any pending hover timeout to prevent toolbar from appearing during drag
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);

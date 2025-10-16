@@ -386,32 +386,74 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setIsMuted(!isMuted);
   };
 
+  // Track if mouse has moved during mousedown (to distinguish click from drag)
+  const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
+  const hasMoved = useRef(false);
+
   // Handle mouse down - set flag BEFORE hover state changes
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoRef.current || isSelected) return;
+    if (!videoRef.current) return;
 
-    // Set selecting flag immediately on mouse down, before hover changes
-    const isPaused = videoRef.current.paused;
-    const wasPlaying = !isPaused;
-    console.log(
-      "[VideoPlayer] MouseDown - video paused:",
-      isPaused,
-      "wasPlaying:",
-      wasPlaying
-    );
+    // Track initial mouse position to detect dragging
+    mouseDownPos.current = { x: e.clientX, y: e.clientY };
+    hasMoved.current = false;
 
-    isSelecting.current = true; // Prevent hover leave from pausing
-    wasPlayingBeforeSelection.current = wasPlaying;
+    // For non-selected videos, don't interfere with drag detection
+    // Just track the playing state
+    if (!isSelected) {
+      const isPaused = videoRef.current.paused;
+      const wasPlaying = !isPaused;
+      console.log(
+        "[VideoPlayer] MouseDown - video paused:",
+        isPaused,
+        "wasPlaying:",
+        wasPlaying
+      );
 
-    console.log(
-      "[VideoPlayer] Set isSelecting=true, wasPlayingBeforeSelection=",
-      wasPlaying
-    );
+      isSelecting.current = true; // Prevent hover leave from pausing
+      wasPlayingBeforeSelection.current = wasPlaying;
+
+      console.log(
+        "[VideoPlayer] Set isSelecting=true, wasPlayingBeforeSelection=",
+        wasPlaying
+      );
+
+      // Don't stop propagation - let CanvasObject handle the drag
+      return;
+    }
+
+    // For selected videos, still track but let CanvasObject handle first
+    // The click handler will deal with play/pause if it's not a drag
+  };
+
+  // Handle mouse move to detect dragging
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (mouseDownPos.current && !hasMoved.current) {
+      const dx = Math.abs(e.clientX - mouseDownPos.current.x);
+      const dy = Math.abs(e.clientY - mouseDownPos.current.y);
+
+      // If moved more than 3px, consider it a drag
+      if (dx > 3 || dy > 3) {
+        hasMoved.current = true;
+      }
+    }
   };
 
   // Handle video click to select or play/pause
   const handleVideoClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!videoRef.current) return;
+
+    // If this was a drag, ignore the click
+    if (hasMoved.current) {
+      console.log("[VideoPlayer] Click ignored - was dragging");
+      mouseDownPos.current = null;
+      hasMoved.current = false;
+      return;
+    }
+
+    // Reset tracking
+    mouseDownPos.current = null;
+    hasMoved.current = false;
 
     // First click (not selected): just let it select
     if (!isSelected) {
@@ -445,6 +487,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     <div
       className="w-full h-full bg-black flex items-center justify-center relative"
       onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
       onClick={handleVideoClick}
       style={{ cursor: isSelected ? "pointer" : "default" }}
     >
