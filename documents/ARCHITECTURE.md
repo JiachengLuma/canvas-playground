@@ -1,448 +1,37 @@
 # Canvas System Architecture
 
-## Project Vision
+Current architecture and implementation details for Canvas Playground.
 
-Build a comprehensive canvas system that handles all types of generative content with a unified interaction model. The system should elegantly handle creation, generation, loading, error, and ready states for all object types while providing powerful organization through frames and layouts.
+## System Overview
 
----
+Canvas Playground is a comprehensive canvas system built with React and TypeScript. The architecture emphasizes clean separation of concerns, custom hooks for state management, and handler factories for business logic.
 
-## Core Object Types
+## Core Principles
 
-### Canvas Native Things (Immediate, No Generation)
+1. **Modular State Management**: Each concern (selection, drag, zoom, etc.) is isolated in a custom hook
+2. **Handler Factories**: Business logic extracted into reusable handler factories
+3. **Scale-Aware UI**: All UI elements adapt to zoom levels for consistent visual appearance
+4. **Animation Performance**: Motion values and RAF for smooth animations without re-renders
+5. **Type Safety**: Comprehensive TypeScript types throughout the codebase
 
-Objects created directly by users - appear immediately with no loading state:
+## Object Types
 
-1. **Text** - Rich text content
-2. **Shape** - Basic geometric shapes (rectangle, circle, triangle, etc.)
-3. **Doodle** - Freehand drawings
-4. **Sticky** - Sticky note cards with title, author, and color
-5. **Link** - URL previews with metadata
-6. **PDF** - Uploaded PDF documents
-
-### Artifacts (AI-Generated, Require Generation Pipeline)
-
-Objects that go through: pre-placeholder → generating → ready/error:
-
-7. **Image** - AI-generated images
-8. **Video** - AI-generated videos
-9. **Audio** - AI-generated audio clips
-10. **Document** - AI-generated rich documents
-
-### Organizational Concepts
-
-11. **Frame** - Container with layout options
-
-    - Can be human-made (user creates) or agent-made (AI suggests grouping)
-    - AutoLayout toggle: ON (HStack/VStack/Grid) or OFF (manual positioning)
-
-12. **Placeholder** - Visual representation during artifact generation states
-
----
-
-## Object Lifecycle & State Machine
-
-Every object follows this state machine:
-
-```
-┌─────────────────┐
-│     IDLE        │  ← Normal ready state
-└────────┬────────┘
-         │
-    [User creates]
-         │
-         ↓
-┌─────────────────┐
-│ PRE_PLACEHOLDER │  ← Clicked "Add Image" but no prompt yet
-└────────┬────────┘
-         │
-    [Prompt given]
-         │
-         ↓
-┌─────────────────┐
-│   GENERATING    │  ← Prompt sent, waiting for result
-└────────┬────────┘
-         │
-         ├─────────→ [Success] → READY (IDLE)
-         │
-         └─────────→ [Failure] → ERROR
-                                    │
-                              [Retry] → GENERATING
-```
-
-### State Properties
-
-| State             | Visual Indicator            | Actions Available | Header Shows               |
-| ----------------- | --------------------------- | ----------------- | -------------------------- |
-| `IDLE`            | Normal content              | All actions       | Name, type icon            |
-| `PRE_PLACEHOLDER` | Dashed border, prompt input | Cancel, Submit    | "Add prompt..."            |
-| `GENERATING`      | Spinner, progress           | Cancel            | "Generating..." + progress |
-| `ERROR`           | Red border, error icon      | Retry, Delete     | Error message              |
-
----
-
-## Visual System
-
-### Consistent Component Structure
-
-Every canvas object has these visual layers:
-
-```
-┌────────────────────────────────────┐
-│ Header (always visible)            │ ← Name, type icon, status
-├────────────────────────────────────┤
-│                                    │
-│  Content or Placeholder            │ ← The actual content
-│                                    │
-├────────────────────────────────────┤
-│ Footer (optional)                  │ ← Metadata, timestamps
-└────────────────────────────────────┘
-
-External (on hover/select):
-- Toolbar (floating above)
-- Resize Handles (8 corners/edges)
-- Selection Bounds (blue outline)
-```
-
-### Header System
-
-**Editable Header** (click to edit name):
-
-```
-┌─────────────────────────────────────┐
-│ [Icon] Object Name        [Status]  │
-└─────────────────────────────────────┘
-```
-
-**States**:
-
-- Normal: Click to edit name
-- Editing: Input field with save/cancel
-- Draggable: Click & drag header to move entire object
-
-**Status Indicators**:
-
-- `●` Green dot: Ready
-- `⟳` Spinner: Generating
-- `⚠` Warning: Error
-- `○` Gray dot: Pre-placeholder
-
----
-
-## Frame System
-
-Frames are containers that can hold multiple objects with different layout engines.
-
-### Layout Engines
-
-#### 1. Auto Layout
-
-- Objects positioned manually by user
-- No automatic reflow
-- Default behavior (like current canvas)
-
-#### 2. HStack (Horizontal Stack)
-
-```
-┌────────────────────────────────────┐
-│ [Obj1] [Obj2] [Obj3]              │
-└────────────────────────────────────┘
-```
-
-- Children arranged horizontally
-- Configurable gap between items
-- Configurable padding
-
-#### 3. VStack (Vertical Stack)
-
-```
-┌───────────┐
-│   [Obj1]  │
-│   [Obj2]  │
-│   [Obj3]  │
-└───────────┘
-```
-
-- Children arranged vertically
-- Configurable gap between items
-- Configurable padding
-
-#### 4. Grid (Wrapping HStack)
-
-```
-┌────────────────────────────────────┐
-│ [Obj1] [Obj2] [Obj3]              │
-│ [Obj4] [Obj5]                      │
-└────────────────────────────────────┘
-```
-
-- Children arranged in grid with wrapping
-- Configurable columns or auto-fit
-- Configurable gap and padding
-
-### Frame Properties
+### Type Hierarchy
 
 ```typescript
-interface Frame {
-  id: string;
-  name: string;
-  layout: "auto" | "hstack" | "vstack" | "grid";
-  padding: number;
-  gap: number;
-  children: string[]; // IDs of contained objects
-  backgroundColor?: string;
-  borderRadius?: number;
-  // Layout-specific props
-  gridColumns?: number | "auto-fit";
-}
+type ObjectType = CanvasNativeType | ArtifactType | ContainerType;
+
+type CanvasNativeType = "text" | "shape" | "doodle" | "sticky" | "link" | "pdf";
+
+type ArtifactType = "image" | "video" | "audio" | "document";
+
+type ContainerType = "frame";
 ```
 
-### Frame Actions
-
-- **Unframe**: Remove frame but keep children
-- **Change Layout**: Switch between auto/hstack/vstack/grid
-- **Frame Multiple**: Select multiple objects → "Create Frame"
-- **Download Frame**: Export frame + all children
-- **Tag Frame**: Add color tags to entire frame
-
----
-
-## Placeholder System
-
-Two types of placeholders represent different stages of content creation.
-
-### Pre-Placeholder
-
-**When**: User clicks "Add Image" but hasn't provided a prompt yet
-
-**Visual**:
-
-```
-┌─────────────────────────────────────┐
-│ [Icon] New Image          [○]       │
-├─────────────────────────────────────┤
-│                                     │
-│     ┌─────────────────────┐        │
-│     │  Enter prompt...    │        │
-│     └─────────────────────┘        │
-│                                     │
-│     [Generate] [Cancel]             │
-│                                     │
-└─────────────────────────────────────┘
-```
-
-**Features**:
-
-- Dashed border (2px dashed gray)
-- Centered prompt input
-- Generate/Cancel buttons
-- Can be resized (affects final content size)
-- Can be moved
-- Auto-focus on prompt input
-
-### Generating Placeholder
-
-**When**: Prompt submitted, generation in progress
-
-**Visual**:
-
-```
-┌─────────────────────────────────────┐
-│ [Icon] Generating Image...  [⟳ 45%]│
-├─────────────────────────────────────┤
-│                                     │
-│        ⟳                            │
-│     Generating...                   │
-│     "sunset over mountains"         │
-│                                     │
-│     [Progress Bar ████░░░░]        │
-│                                     │
-│     [Cancel]                        │
-│                                     │
-└─────────────────────────────────────┘
-```
-
-**Features**:
-
-- Solid border (1px solid gray)
-- Animated spinner
-- Progress bar (if available)
-- Shows the prompt used
-- Cancel button
-- Shimmer/skeleton effect
-
-### Error State
-
-**When**: Generation failed
-
-**Visual**:
-
-```
-┌─────────────────────────────────────┐
-│ [Icon] Failed to Generate   [⚠]    │
-├─────────────────────────────────────┤
-│                                     │
-│         ⚠                           │
-│     Generation failed               │
-│     "Rate limit exceeded"           │
-│                                     │
-│     [Retry] [Edit Prompt] [Delete] │
-│                                     │
-└─────────────────────────────────────┘
-```
-
-**Features**:
-
-- Red border (2px solid red)
-- Error icon
-- Error message
-- Retry button
-- Edit prompt button
-- Delete option
-
----
-
-## Menu Options & Behaviors by Type
-
-### Canvas Native Things
-
-| Type   | On Create            | On Select           | Special Actions                   |
-| ------ | -------------------- | ------------------- | --------------------------------- |
-| Text   | Immediate edit mode  | Edit, Format, Tag   | Font size, color, alignment       |
-| Shape  | Choose shape type    | Resize, Rotate, Tag | Fill color, stroke, corner radius |
-| Doodle | Drawing mode         | Edit points, Tag    | Stroke color, width               |
-| Sticky | Immediate edit mode  | Edit, Tag           | Note color, title, author         |
-| Link   | URL input → preview  | Open link, Tag      | Edit URL, refresh preview         |
-| PDF    | File upload → viewer | Download, Tag       | Page navigation                   |
-
-### Artifacts (AI-Generated)
-
-| Type     | On Create    | While Generating      | On Ready                          | On Error                   |
-| -------- | ------------ | --------------------- | --------------------------------- | -------------------------- |
-| Image    | Prompt input | Cancel, View progress | Download, Tag, Rerun, Edit prompt | Retry, Edit prompt, Delete |
-| Video    | Prompt input | Cancel, View progress | Play, Download, Tag, Rerun        | Retry, Edit prompt, Delete |
-| Audio    | Prompt input | Cancel, View progress | Play, Download, Tag, Rerun        | Retry, Edit prompt, Delete |
-| Document | Prompt input | Cancel, View progress | Edit, Export, Tag, Rerun          | Retry, Edit prompt, Delete |
-
-### Frames
-
-| Property                  | Options                | Effect                                          |
-| ------------------------- | ---------------------- | ----------------------------------------------- |
-| Created By                | Human / Agent          | Visual badge indicator                          |
-| AutoLayout                | On / Off               | Toggle between manual and automatic positioning |
-| Layout (if AutoLayout ON) | HStack / VStack / Grid | Children reflow automatically                   |
-| Padding                   | 0-100px                | Space around edges                              |
-| Gap                       | 0-50px                 | Space between children                          |
-
-**Frame Actions**: Unframe, Tag, Change Layout, Toggle AutoLayout, Download All
-
----
-
-## Interaction System
-
-### Selection States
-
-| State            | Visual             | Toolbar       | Handles        |
-| ---------------- | ------------------ | ------------- | -------------- |
-| **Unselected**   | Default            | Hidden        | Hidden         |
-| **Hover**        | Subtle highlight   | Show on hover | Hidden         |
-| **Selected**     | Blue outline (2px) | Always show   | Show 8 handles |
-| **Multi-select** | Blue outline       | Multi-toolbar | Show bounds    |
-
-### Resize Handles
-
-When object is selected, show 8 resize handles:
-
-```
-TL ─── TM ─── TR
-│              │
-ML      ○      MR  ← ○ = center drag handle
-│              │
-BL ─── BM ─── BR
-```
-
-**Behaviors**:
-
-- Corner handles: Resize proportionally (maintain aspect ratio if holding Shift)
-- Edge handles: Resize in one dimension
-- Center handle: Move entire object (alternative to dragging body)
-
-### Drag Behaviors
-
-1. **Drag Body**: Move object (if not in frame with fixed layout)
-2. **Drag Header**: Move object (always works, even in frames)
-3. **Drag Handle**: Resize object from that handle
-4. **Drag to Select**: Draw selection box to multi-select
-
-### Keyboard Shortcuts
-
-- `Delete` / `Backspace`: Delete selected
-- `Cmd+D`: Duplicate selected
-- `Cmd+G`: Group selected into frame
-- `Cmd+Shift+G`: Unframe selected frame
-- `Cmd+Enter`: Confirm prompt in pre-placeholder
-- `Escape`: Cancel editing/deselect
-- Arrow keys: Nudge selected objects
-- `Shift+Arrow`: Nudge by 10px
-
----
-
-## Component Architecture
-
-### Proposed File Structure
-
-```
-src/
-├── types/
-│   ├── objects.ts          # All object type definitions
-│   ├── states.ts           # State machine types
-│   └── frames.ts           # Frame types
-├── components/
-│   ├── canvas/
-│   │   ├── Canvas.tsx      # Main canvas component
-│   │   ├── CanvasObject.tsx # Wrapper for all objects
-│   │   └── SelectionBox.tsx
-│   ├── objects/
-│   │   ├── ObjectHeader.tsx
-│   │   ├── ObjectBody.tsx
-│   │   ├── ObjectPlaceholder.tsx
-│   │   ├── ImageObject.tsx
-│   │   ├── VideoObject.tsx
-│   │   ├── TextObject.tsx
-│   │   ├── DoodleObject.tsx
-│   │   ├── ShapeObject.tsx
-│   │   ├── DocumentObject.tsx
-│   │   └── AudioObject.tsx
-│   ├── frames/
-│   │   ├── Frame.tsx
-│   │   ├── AutoLayout.tsx
-│   │   ├── HStackLayout.tsx
-│   │   ├── VStackLayout.tsx
-│   │   └── GridLayout.tsx
-│   ├── placeholders/
-│   │   ├── PrePlaceholder.tsx
-│   │   ├── GeneratingPlaceholder.tsx
-│   │   └── ErrorState.tsx
-│   ├── interactions/
-│   │   ├── ResizeHandles.tsx
-│   │   ├── DragHandle.tsx
-│   │   ├── SelectionBounds.tsx
-│   │   └── ContextToolbar.tsx
-│   └── ui/
-│       └── ... (existing UI components)
-├── hooks/
-│   ├── useObjectState.ts   # State machine logic
-│   ├── useFrameLayout.ts   # Frame layout calculations
-│   └── useSelection.ts     # Selection management
-└── utils/
-    ├── layout.ts           # Layout engine calculations
-    └── geometry.ts         # Positioning helpers
-```
-
-### Type System
+### Base Object Structure
 
 ```typescript
-// Base object interface
-interface BaseObject {
+interface BaseCanvasObject {
   id: string;
   type: ObjectType;
   name: string;
@@ -450,185 +39,533 @@ interface BaseObject {
   y: number;
   width: number;
   height: number;
-  rotation?: number;
-  state: ObjectState;
-  colorTag?: ColorTag;
-  metadata?: ObjectMetadata;
+  rotation: number;
+  colorTag: ColorTag | null;
+  parentId: string | null;
+  metadata: ObjectMetadata;
 }
-
-// Canvas native things (no generation)
-type CanvasNativeType =
-  | "text"
-  | "shape"
-  | "doodle"
-  | "sticker"
-  | "link"
-  | "pdf";
-
-// Artifacts (AI-generated)
-type ArtifactType = "image" | "video" | "audio" | "document";
-
-// Organizational
-type ContainerType = "frame";
-
-type ObjectType = CanvasNativeType | ArtifactType | ContainerType;
-
-type ObjectState = "idle" | "pre-placeholder" | "generating" | "error";
-
-interface ObjectMetadata {
-  prompt?: string;
-  progress?: number; // 0-100
-  error?: string;
-  createdAt: number;
-  updatedAt: number;
-  generationParams?: Record<string, any>;
-}
-
-// Content objects
-interface ImageObject extends BaseObject {
-  type: "image";
-  content: string; // URL or data URI
-  aspectRatio?: number;
-}
-
-interface VideoObject extends BaseObject {
-  type: "video";
-  content: string; // URL
-  duration?: number;
-  thumbnail?: string;
-}
-
-interface TextObject extends BaseObject {
-  type: "text";
-  content: string; // Rich text or markdown
-  fontSize?: number;
-  fontFamily?: string;
-}
-
-// Frame object
-interface FrameObject extends BaseObject {
-  type: "frame";
-  createdBy: "human" | "agent"; // Who created this frame
-  autoLayout: boolean; // AutoLayout on/off
-  layout: LayoutType; // Only applies when autoLayout = true
-  padding: number;
-  gap: number;
-  children: string[]; // Child object IDs
-  backgroundColor?: string;
-  borderRadius?: number;
-  gridColumns?: number | "auto-fit";
-}
-
-type LayoutType = "hstack" | "vstack" | "grid"; // No "auto" - that's autoLayout = false
 ```
 
----
+### Specialized Object Types
 
-## Development Roadmap
+**VideoObject**:
 
-### Phase 1: Foundation (30 min)
+```typescript
+interface VideoObject extends BaseCanvasObject {
+  type: "video";
+  content: string; // URL
+  duration: number;
+  createdBy: CreatedBy;
+}
+```
 
-**Goal**: Refactor existing code to support new type system and states
+**FrameObject**:
 
-1. **Update Type System** (10 min)
+```typescript
+interface FrameObject extends BaseCanvasObject {
+  type: "frame";
+  createdBy: "human" | "agent";
+  autoLayout: boolean;
+  layout: LayoutType;
+  padding: number;
+  gap: number;
+  children: string[];
+  backgroundColor: string;
+  borderRadius: number;
+  gridColumns?: number | "auto-fit";
+}
+```
 
-   - Extend current types with `ObjectState`, `ObjectMetadata`
-   - Add Frame type definition
-   - Create state machine types
+## Component Architecture
 
-2. **Refactor CanvasObject** (10 min)
+### High-Level Structure
 
-   - Add support for different object types
-   - Implement state-based rendering
-   - Add ObjectHeader component
+```
+App.tsx
+├── Custom Hooks (state management)
+│   ├── useCanvasState
+│   ├── useSelection
+│   ├── useDrag
+│   ├── useToolbar
+│   ├── usePan
+│   ├── useWheel
+│   ├── useKeyboardShortcuts
+│   ├── useHistory
+│   ├── useFrameDrawing
+│   └── useContextMenu
+│
+├── Handler Factories (business logic)
+│   ├── createObjectHandlers
+│   ├── createFrameHandlers
+│   ├── createArtifactHandlers
+│   ├── createMouseHandlers
+│   └── createCanvasHandlers
+│
+└── Components (UI)
+    ├── CanvasLayer
+    ├── HeaderToolbar
+    ├── ZoomControls
+    ├── CanvasContextMenu
+    └── Documentation
+```
 
-3. **Create ObjectHeader** (10 min)
-   - Editable name (click to edit)
-   - Type icon display
-   - Status indicator (dot/spinner/error)
-   - Draggable header for movement
+### Component Breakdown
 
-### Phase 2: Placeholder System (15 min)
+**CanvasLayer**:
 
-**Goal**: Implement pre-placeholder and generating states
+- Main canvas rendering
+- Transforms for zoom/pan
+- Object rendering loop
+- Selection box
+- Frame drawing overlay
 
-4. **PrePlaceholder Component** (8 min)
+**ObjectsLayer**:
 
-   - Prompt input UI
-   - Generate/Cancel buttons
-   - Dashed border styling
+- Renders all canvas objects
+- Handles z-index ordering
+- Manages parent-child relationships
 
-5. **GeneratingPlaceholder Component** (7 min)
-   - Spinner animation
-   - Progress bar
-   - Prompt display
-   - Cancel button
+**UnifiedToolbarWrapper**:
 
-### Phase 3: Error Handling (5 min)
+- Single and multi-select toolbars
+- Position calculation based on selection bounds
+- Animation logic for smooth transitions
+- Scale-aware sizing and compact mode
 
-**Goal**: Handle generation failures gracefully
+**CanvasObject**:
 
-6. **ErrorState Component**
-   - Error message display
-   - Retry button
-   - Edit prompt option
+- Wrapper for all object types
+- Renders headers, content, selection bounds
+- Handles object-specific rendering
+- Integrates resize handles
 
-### Phase 4: Frame System (10 min)
+**VideoPlayer**:
 
-**Goal**: Basic frame container with layout options
+- Custom video player with hover controls
+- Scale-aware UI elements
+- Progress bar with scrubbing
+- Auto-play on hover
 
-7. **Frame Component & Layout Engines**
-   - Frame wrapper with layout prop
-   - HStack/VStack/Grid layout calculations
-   - Frame-specific toolbar actions
-   - Unframe functionality
+## State Management Pattern
 
----
+### Hook-Based State
 
-## Success Criteria
+Each concern is isolated in a custom hook that returns state and actions:
 
-After implementation, we should be able to:
+```typescript
+// Example: useSelection hook
+const selection = useSelection(objects);
+// Returns:
+// {
+//   selectedIds: string[],
+//   selectObject: (id: string) => void,
+//   toggleSelection: (id: string) => void,
+//   clearSelection: () => void,
+//   ...
+// }
+```
 
-✅ Click "Add Image" → See pre-placeholder → Enter prompt → See generating state → See result or error
+### Handler Factories
 
-✅ Edit any object's name by clicking its header
+Business logic is extracted into handler factories that receive dependencies:
 
-✅ Drag objects by their header even in constrained layouts
+```typescript
+const objectHandlers = createObjectHandlers({
+  objects,
+  setObjects,
+  selectedIds,
+  clearSelection,
+  pushToHistory,
+});
 
-✅ Create frames with different layout modes and see children reflow
+// Returns:
+// {
+//   handleDelete: () => void,
+//   handleDuplicate: () => void,
+//   handleColorTag: (color: ColorTag) => void,
+//   ...
+// }
+```
 
-✅ Unframe a frame and keep children
+### Benefits
 
-✅ Handle errors gracefully with retry options
+1. **Testability**: Handlers can be tested in isolation
+2. **Reusability**: Hooks can be composed across components
+3. **Clarity**: Clear separation between state, logic, and UI
+4. **Type Safety**: Full TypeScript inference
+5. **Performance**: Selective re-renders based on dependency changes
 
-✅ Resize objects with 8-handle system
+## Visual System
 
-✅ See consistent visual feedback across all object types
+### Rendering Pipeline
 
----
+```
+Canvas Transform (zoom + pan)
+  └── Objects Loop
+      ├── Frame objects (render first)
+      │   └── Frame background
+      ├── Regular objects (render second)
+      │   ├── Object header (conditional)
+      │   ├── Object content (type-specific)
+      │   └── Object footer (metadata)
+      └── Selection system (render last)
+          ├── Selection bounds
+          ├── Resize handles
+          └── Toolbar
+```
 
-## Questions to Consider
+### Z-Index Management
 
-1. **Frame Nesting**: Should frames be able to contain other frames? (Probably yes for flexibility)
+1. Frames render at base z-index
+2. Objects render at z-index based on creation order
+3. Selected objects elevated z-index
+4. Toolbar and handles at highest z-index
 
-2. **Z-Index Management**: How do we handle stacking order, especially with frames?
+### Scale-Aware Calculations
 
-3. **Snap-to-Grid**: Should we add grid snapping for cleaner layouts?
+All UI elements use scale-aware sizing:
 
-4. **Undo/Redo**: Do we need history management in this prototype?
+```typescript
+function getScaledSize(baseSize: number, zoomLevel: number): number {
+  return baseSize / zoomLevel;
+}
+```
 
-5. **Persistence**: Should we save canvas state to localStorage?
+This ensures UI elements maintain consistent visual size across zoom levels.
 
-6. **Export**: What formats should we support for download? (PNG, SVG, JSON?)
+### UI Size Classification
 
----
+Objects classified by screen dimensions:
 
-## Next Steps
+```typescript
+type UISize = "tiny" | "small" | "large";
 
-1. Review this architecture document
-2. Prioritize phases based on 1-hour constraint
-3. Start with Phase 1: Foundation
-4. Iterate quickly with frequent testing
-5. Document any deviations or discoveries
+function classifyUISize(width: number, height: number): UISize {
+  const minDimension = Math.min(width, height);
+  if (minDimension < 30) return "tiny";
+  if (minDimension < 120) return "small";
+  return "large";
+}
+```
 
-Let's build this! 🚀
+Classification determines:
+
+- Whether object header is visible
+- Whether toolbar is compact
+- Whether video controls are shown
+
+## Animation System
+
+### Toolbar Position Animation
+
+**Strategy**: Only animate when zoom causes size classification change for the same object.
+
+**Implementation**:
+
+- Framer Motion `useMotionValue` for position
+- Spring physics for natural movement
+- No animation when switching selections
+- Instant snap during drag/resize
+
+**Parameters**:
+
+```typescript
+{
+  type: "spring",
+  stiffness: 400,
+  damping: 35,
+  mass: 0.8,
+}
+```
+
+### Layout Animation
+
+**Toolbar Size Changes**:
+
+- Framer Motion `layout` prop
+- Automatic animation for width/height changes
+- Smooth morphing between full and compact modes
+
+**Video Progress Bar**:
+
+- RequestAnimationFrame for 60fps updates
+- No CSS transitions on width (instant)
+- CSS transition on height (hover effect)
+
+## Interaction System
+
+### Event Flow
+
+```
+User Input
+  └── Event Handler
+      └── Hook Action
+          └── Handler Factory Function
+              └── State Update
+                  └── Re-render
+```
+
+### Example: Object Deletion
+
+```
+User presses Delete
+  └── useKeyboardShortcuts
+      └── objectHandlers.handleDelete()
+          └── setObjects (filter deleted)
+              └── pushToHistory (for undo)
+                  └── Canvas re-renders
+```
+
+### Drag System
+
+**Architecture**:
+
+- `useDrag` hook manages drag state
+- `createMouseHandlers` provides drag logic
+- Canvas handles mouse events
+- Objects receive computed positions
+
+**Features**:
+
+- Multi-object drag
+- Frame drag with children
+- Constrained dragging (future)
+- Snap to grid (future)
+
+### Resize System
+
+**8-Point Handles**:
+
+- Top-left, top, top-right
+- Left, right
+- Bottom-left, bottom, bottom-right
+
+**Logic**:
+
+- Corner resize: diagonal
+- Edge resize: single axis
+- Frame resize: scale children proportionally
+- Maintains minimum size constraints
+
+## Performance Optimizations
+
+### Rendering
+
+1. **Selective Re-renders**: React.memo on expensive components
+2. **Transform-Based Positioning**: CSS transforms for zoom/pan (GPU accelerated)
+3. **Motion Values**: Framer Motion motion values bypass React renders
+4. **RAF Animations**: RequestAnimationFrame for 60fps updates
+
+### State Management
+
+1. **Immutable Updates**: New object arrays prevent unnecessary re-renders
+2. **Dependency Arrays**: Precise useEffect dependencies
+3. **Refs for Non-State**: useRef for values that don't trigger renders
+4. **Batched Updates**: Multiple state changes in single render cycle
+
+### Video Player
+
+1. **RAF Progress**: RequestAnimationFrame instead of timeupdate events
+2. **Pointer Events**: Disable when not interactive
+3. **Conditional Rendering**: Hide controls at small sizes
+4. **Cleanup**: Proper cleanup of animation frames and event listeners
+
+## Configuration System
+
+### Behavior Configuration
+
+`objectBehaviors.json` defines:
+
+- Available actions per object type
+- Action icons, labels, tooltips
+- Context menu items
+- Toolbar button configurations
+
+### Benefits
+
+1. **Declarative**: Actions defined in data, not code
+2. **Extensible**: Add new actions without touching components
+3. **Type-Safe**: Validated against TypeScript types
+4. **Maintainable**: Single source of truth for actions
+
+## File Structure
+
+```
+src/
+├── components/
+│   ├── canvas/
+│   │   ├── CanvasLayer.tsx          # Main canvas
+│   │   ├── ObjectsLayer.tsx         # Object rendering
+│   │   └── UnifiedToolbarWrapper.tsx # Toolbar system
+│   ├── objects/
+│   │   └── ObjectHeader.tsx         # Editable object header
+│   ├── placeholders/
+│   │   ├── PrePlaceholder.tsx       # Awaiting input
+│   │   ├── GeneratingPlaceholder.tsx # Loading state
+│   │   └── ErrorState.tsx           # Error handling
+│   ├── toolbar/
+│   │   ├── ContextToolbar.tsx       # Single select
+│   │   ├── HeaderToolbar.tsx        # Top bar
+│   │   └── PlaceholderButtons.tsx   # Generation states
+│   ├── CanvasObject.tsx             # Object wrapper
+│   ├── VideoPlayer.tsx              # Custom video player
+│   ├── DragHandle.tsx               # Drag/move handle
+│   ├── SelectionBox.tsx             # Box selection
+│   └── CanvasContextMenu.tsx        # Right-click menu
+├── config/
+│   ├── behaviorConfig.ts            # Runtime behavior config
+│   ├── constants.ts                 # App constants
+│   ├── initialObjects.ts            # Demo objects
+│   └── objectBehaviors.json         # Action definitions
+├── handlers/
+│   ├── objectHandlers.ts            # Object CRUD logic
+│   ├── frameHandlers.ts             # Frame operations
+│   ├── artifactHandlers.ts          # Generation logic
+│   ├── mouseHandlers.ts             # Mouse interaction logic
+│   └── canvasHandlers.ts            # Canvas operations
+├── hooks/
+│   ├── useCanvasState.ts            # Objects, zoom, pan state
+│   ├── useSelection.ts              # Selection management
+│   ├── useDrag.ts                   # Drag and resize
+│   ├── useToolbar.ts                # Toolbar state
+│   ├── usePan.ts                    # Canvas panning
+│   ├── useWheel.ts                  # Zoom via wheel
+│   ├── useKeyboardShortcuts.ts      # Keyboard handlers
+│   ├── useHistory.ts                # Undo/redo
+│   ├── useFrameDrawing.ts           # Frame drawing mode
+│   └── useContextMenu.ts            # Right-click menu
+├── types/
+│   ├── types.ts                     # Core type definitions
+│   └── actions.ts                   # Action types
+└── utils/
+    ├── canvasUtils.ts               # Canvas calculations
+    └── objectFactory.ts             # Object creation helpers
+```
+
+## Key Design Decisions
+
+### 1. Motion Values for Animations
+
+**Decision**: Use Framer Motion motion values instead of state for animations.
+
+**Rationale**:
+
+- No re-renders during animation
+- Smooth 60fps performance
+- Better for toolbar position animations
+
+### 2. RequestAnimationFrame for Video Progress
+
+**Decision**: Use RAF instead of timeupdate event.
+
+**Rationale**:
+
+- timeupdate fires only 4 times per second
+- RAF provides smooth 60fps updates
+- Better visual experience
+
+### 3. Handler Factories Pattern
+
+**Decision**: Extract business logic into handler factories.
+
+**Rationale**:
+
+- Testability
+- Reusability
+- Clear separation of concerns
+- Easier to reason about
+
+### 4. Scale-Aware UI System
+
+**Decision**: All UI elements scale inversely with zoom.
+
+**Rationale**:
+
+- Consistent visual size
+- Better UX at all zoom levels
+- Clearer at high zoom
+- Less clutter at low zoom
+
+### 5. Hook-Based State Management
+
+**Decision**: Use custom hooks instead of context or external state library.
+
+**Rationale**:
+
+- Simpler than Redux/Zustand for this scale
+- Better than prop drilling
+- Hooks are composable
+- Good for this app size
+
+## Testing Strategy
+
+### Unit Tests
+
+Test handler factories in isolation:
+
+- Object operations
+- Frame operations
+- Canvas calculations
+- Utility functions
+
+### Integration Tests
+
+Test hook interactions:
+
+- Selection + drag
+- Zoom + toolbar positioning
+- Frame + child manipulation
+
+### Visual Tests
+
+Test UI appearance:
+
+- Scale-aware sizing
+- Animation smoothness
+- Cross-browser compatibility
+
+## Future Architecture Enhancements
+
+### 1. Virtual Canvas
+
+For handling thousands of objects:
+
+- Render only visible objects
+- Cull objects outside viewport
+- Optimize memory usage
+
+### 2. Command Pattern
+
+For better undo/redo:
+
+- Each action as command object
+- Command.execute() and Command.undo()
+- More granular history
+
+### 3. Plugin System
+
+For extensibility:
+
+- Register custom object types
+- Add custom toolbar actions
+- Extend context menu
+
+### 4. Web Workers
+
+For expensive operations:
+
+- Layout calculations in worker
+- Export operations in worker
+- Keep UI thread responsive
+
+### 5. Canvas Rendering
+
+For performance at scale:
+
+- HTML Canvas for rendering
+- WebGL for effects
+- Maintain React for controls
+
+## Conclusion
+
+The current architecture provides a solid foundation for a comprehensive canvas system. The hook-based state management, handler factories, and scale-aware UI system work together to create a performant and maintainable codebase. Future enhancements can build on these patterns without major refactoring.

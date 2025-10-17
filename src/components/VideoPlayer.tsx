@@ -271,10 +271,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Determine what to show based on size classification
   const showProgressBar = sizeState !== "micro"; // Hide everything at micro
-  const showIconAndTime = sizeState === "normal"; // Only show icon and time at normal size
+  const showIconAndTime = sizeState !== "tiny" && sizeState !== "micro"; // Show icon and time at small and normal size
 
   // Scale-aware sizing - made bigger at normal scale
-  const pillInset = getScaledSize(10);
+  // Pill inset decreases at smaller scales for better space utilization
+  const basePillInset =
+    sizeState === "normal" ? 10 : sizeState === "small" ? 6 : 3;
+  const pillInset = getScaledSize(basePillInset);
   const pillPaddingX = getScaledSize(8);
   const pillPaddingY = getScaledSize(4);
   const pillGap = getScaledSize(4);
@@ -286,15 +289,25 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Progress bar sizing - taller on hover for interactivity
   const progressBarHeight = getScaledSize(isProgressBarHovered ? 6 : 2);
-  const progressBarRadius = getScaledSize(23);
-  const progressBarBottom = getScaledSize(8);
-  const progressBarSide = getScaledSize(13);
-  const progressBarHoverPadding = getScaledSize(16); // Extra hover area (doubled for more generous interaction)
+  // Progress bar flush to bottom and sides - no padding
+  const baseProgressBarBottom = 0; // Moved to bottom edge - no padding
+  const baseProgressBarSide = 0; // Flush to left and right edges - no padding
+  const progressBarBottom = getScaledSize(baseProgressBarBottom);
+  const progressBarSide = getScaledSize(baseProgressBarSide);
 
   // Adjust pill position when progress bar is hovered
   const adjustedPillBottom = isProgressBarHovered
     ? pillInset + getScaledSize(6) // Push up when progress bar is taller
     : pillInset;
+
+  // Calculate if controls fit in the video width when selected
+  // Estimate: icon (14px) + gap (4px) + time text (~80px for "0:00 / 0:00") + padding (16px) = ~114px
+  // For audio button: + icon (14px) + gap (4px) + padding (16px) = ~34px more
+  const estimatedControlWidth =
+    iconSize + pillGap + getScaledSize(80) + pillPaddingX * 2;
+  const estimatedAudioButtonWidth = hasAudio ? iconSize + pillPaddingX * 2 : 0;
+  const totalControlWidth = estimatedControlWidth + estimatedAudioButtonWidth;
+  const controlsFitInVideo = width >= totalControlWidth;
 
   // Handle seek area hover for scrub preview (bottom 50% of video)
   const handleSeekAreaMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -632,8 +645,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </motion.div>
         )}
 
-        {/* Duration pill with play/pause - only show when selected and at normal size */}
-        {isSelected && showIconAndTime && (
+        {/* Duration pill with play/pause - only show when selected and at normal size and controls fit */}
+        {isSelected && showIconAndTime && controlsFitInVideo && (
           <motion.div
             className="absolute"
             style={{
@@ -711,8 +724,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </motion.div>
         )}
 
-        {/* Audio control button - only show when selected and has audio */}
-        {isSelected && hasAudio && showIconAndTime && (
+        {/* Audio control button - only show when selected and has audio and controls fit */}
+        {isSelected && hasAudio && showIconAndTime && controlsFitInVideo && (
           <motion.div
             className="absolute pointer-events-auto"
             style={{
@@ -766,11 +779,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             className="absolute cursor-pointer"
             style={{
               // Start after the play pill, end before the mute button
-              left: showIconAndTime
-                ? `${pillInset + (iconSize + pillPaddingX * 2) + pillGap}px`
-                : 0,
+              // If controls don't fit, span full width
+              left:
+                showIconAndTime && controlsFitInVideo
+                  ? `${pillInset + (iconSize + pillPaddingX * 2) + pillGap}px`
+                  : 0,
               right:
-                hasAudio && showIconAndTime
+                hasAudio && showIconAndTime && controlsFitInVideo
                   ? `${pillInset + (iconSize + pillPaddingX * 2) + pillGap}px`
                   : 0,
               bottom: 0,
@@ -808,7 +823,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 right: 0,
                 bottom: 0,
                 backgroundColor: "rgba(0, 0, 0, 0.56)",
-                borderRadius: `${progressBarRadius}px`,
+                borderRadius: 0,
                 boxShadow: "0px 2px 10px 0px rgba(0, 0, 0, 0.1)",
               }}
               initial={{ height: progressBarHeight }}
@@ -827,7 +842,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               style={{
                 bottom: 0,
                 width: `${previewProgress}%`,
-                borderRadius: `${progressBarRadius}px`,
+                borderRadius: 0,
                 boxShadow: "0px 2px 10px 0px rgba(0, 0, 0, 0.1)",
                 opacity: scrubPreviewTime !== null ? 0.7 : 1,
                 transition:
@@ -853,7 +868,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   bottom: 0,
                   width: `${progress}%`,
                   height: `${progressBarHeight}px`,
-                  borderRadius: `${progressBarRadius}px`,
+                  borderRadius: 0,
                   opacity: 0.3,
                 }}
               />

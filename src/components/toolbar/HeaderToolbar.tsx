@@ -4,13 +4,14 @@
  */
 
 import { CanvasNativeType, ArtifactType } from "../../types";
-import { ChevronDown, BookOpen, Palette, Play } from "lucide-react";
+import { ChevronDown, BookOpen, Palette, Play, Settings } from "lucide-react";
 import { ColorTheme } from "../../hooks/useColorTheme";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "../ui/dropdown-menu";
 import { Button } from "../ui/button";
 
@@ -25,6 +26,8 @@ interface HeaderToolbarProps {
   onToggleColorTheme?: () => void;
   videoPauseOnSelect?: boolean;
   onToggleVideoPauseOnSelect?: () => void;
+  selectionPaddingMode?: "flush" | "responsive";
+  onToggleSelectionPadding?: () => void;
 }
 
 export function HeaderToolbar({
@@ -38,6 +41,8 @@ export function HeaderToolbar({
   onToggleColorTheme,
   videoPauseOnSelect = false,
   onToggleVideoPauseOnSelect,
+  selectionPaddingMode = "flush",
+  onToggleSelectionPadding,
 }: HeaderToolbarProps) {
   return (
     <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm border-b">
@@ -134,34 +139,86 @@ export function HeaderToolbar({
 
       {/* Right side - Settings & Documentation */}
       <div className="flex gap-2">
-        {onToggleVideoPauseOnSelect && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={onToggleVideoPauseOnSelect}
-            title={`Video on select: ${
-              videoPauseOnSelect ? "Pause" : "Keep Playing"
-            }`}
-          >
-            <Play className="h-4 w-4" />
-            {videoPauseOnSelect ? "Pause" : "Play"}
-          </Button>
+        {/* Debug Options Dropdown */}
+        {(onToggleVideoPauseOnSelect ||
+          onToggleSelectionPadding ||
+          onToggleColorTheme) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Settings className="h-4 w-4" />
+                Debug
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              {onToggleColorTheme && (
+                <DropdownMenuItem
+                  onSelect={onToggleColorTheme}
+                  className="flex items-start gap-3 py-3"
+                >
+                  <Palette className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium flex items-center gap-2">
+                      Color Theme
+                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                        {colorTheme === "blue" ? "Blue" : "Black"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Switch selection & hover colors between blue and black
+                      themes
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              )}
+              {onToggleVideoPauseOnSelect && (
+                <DropdownMenuItem
+                  onSelect={onToggleVideoPauseOnSelect}
+                  className="flex items-start gap-3 py-3"
+                >
+                  <Play className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium flex items-center gap-2">
+                      Video on Select
+                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                        {videoPauseOnSelect ? "Pause" : "Keep Playing"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Toggle whether videos pause or continue playing when
+                      selected
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              )}
+              {onToggleSelectionPadding && (
+                <DropdownMenuItem
+                  onSelect={onToggleSelectionPadding}
+                  className="flex items-start gap-3 py-3"
+                >
+                  <div className="h-4 w-4 mt-0.5 flex-shrink-0 border-2 border-current rounded" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium flex items-center gap-2">
+                      Selection Padding
+                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                        {selectionPaddingMode === "flush"
+                          ? "Flush (0px)"
+                          : "Responsive"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Toggle selection bounds padding: flush (0px) or responsive
+                      (auto)
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
-        {onToggleColorTheme && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={onToggleColorTheme}
-            title={`Switch to ${
-              colorTheme === "blue" ? "black" : "blue"
-            } theme`}
-          >
-            <Palette className="h-4 w-4" />
-            {colorTheme === "blue" ? "Blue" : "Black"}
-          </Button>
-        )}
+
+        {/* Documentation Button */}
         {onOpenDocumentation && (
           <Button
             variant="outline"

@@ -60,6 +60,9 @@ export default function App() {
   const [showDocumentation, setShowDocumentation] = useState(false);
   const colorTheme = useColorTheme();
   const [videoPauseOnSelect, setVideoPauseOnSelect] = useState(false);
+  const [selectionPaddingMode, setSelectionPaddingMode] = useState<
+    "flush" | "responsive"
+  >("flush");
 
   // ===== Wheel Event Handling =====
   useWheel({
@@ -308,6 +311,12 @@ export default function App() {
         onToggleVideoPauseOnSelect={() =>
           setVideoPauseOnSelect(!videoPauseOnSelect)
         }
+        selectionPaddingMode={selectionPaddingMode}
+        onToggleSelectionPadding={() =>
+          setSelectionPaddingMode(
+            selectionPaddingMode === "flush" ? "responsive" : "flush"
+          )
+        }
       />
 
       {/* Canvas */}
@@ -337,6 +346,7 @@ export default function App() {
         activeToolbarId={toolbar.activeToolbarId}
         toolbarSystemActivated={toolbar.toolbarSystemActivated}
         videoPauseOnSelect={videoPauseOnSelect}
+        selectionPaddingMode={selectionPaddingMode}
         onCanvasMouseDown={mouseHandlers.handleCanvasMouseDown}
         onCanvasMouseMove={mouseHandlers.handleCanvasMouseMove}
         onCanvasMouseUp={mouseHandlers.handleCanvasMouseUp}

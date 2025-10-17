@@ -6,12 +6,12 @@ The UI classification system has been updated from 3 states to **4 states** to b
 
 ## New 4-State System
 
-| State         | Threshold | Corner Handles     | Drag Handle | Toolbar            | Heading     |
-| ------------- | --------- | ------------------ | ----------- | ------------------ | ----------- |
-| **🔴 Micro**  | ≤ 10px    | 1 (top-right only) | Hidden      | **Hidden**         | Hidden      |
-| **🟠 Tiny**   | 10-30px   | 1 (top-right only) | Hidden      | Ellipsis (compact) | Hidden      |
-| **🟡 Small**  | 30-120px  | All 4              | Visible     | Full buttons       | Hidden      |
-| **🟢 Normal** | ≥ 120px   | All 4              | Visible     | Full buttons       | **Visible** |
+| State      | Threshold | Corner Handles     | Drag Handle | Toolbar            | Heading     |
+| ---------- | --------- | ------------------ | ----------- | ------------------ | ----------- |
+| **Micro**  | ≤ 10px    | 1 (top-right only) | Hidden      | **Hidden**         | Hidden      |
+| **Tiny**   | 10-30px   | 1 (top-right only) | Hidden      | Ellipsis (compact) | Hidden      |
+| **Small**  | 30-120px  | All 4              | Visible     | Full buttons       | Hidden      |
+| **Normal** | ≥ 120px   | All 4              | Visible     | Full buttons       | **Visible** |
 
 ## Key Changes from Previous Version
 

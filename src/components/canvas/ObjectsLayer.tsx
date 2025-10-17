@@ -20,6 +20,7 @@ interface ObjectsLayerProps {
   selectionColor: string;
   hoverColor: string;
   videoPauseOnSelect?: boolean;
+  selectionPaddingMode?: "flush" | "responsive";
   onSetActiveToolbar: (id: string | null) => void;
   onActivateToolbarSystem: () => void;
   onObjectHoverEnter: () => void;
@@ -50,6 +51,7 @@ export function ObjectsLayer({
   selectionColor,
   hoverColor,
   videoPauseOnSelect = false,
+  selectionPaddingMode = "flush",
   onSetActiveToolbar,
   onActivateToolbarSystem,
   onObjectHoverEnter,
@@ -113,6 +115,7 @@ export function ObjectsLayer({
           selectionColor={selectionColor}
           hoverColor={hoverColor}
           videoPauseOnSelect={videoPauseOnSelect}
+          selectionPaddingMode={selectionPaddingMode}
           onSetActiveToolbar={onSetActiveToolbar}
           onActivateToolbarSystem={onActivateToolbarSystem}
           onObjectHoverEnter={onObjectHoverEnter}

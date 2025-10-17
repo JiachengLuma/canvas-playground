@@ -60,6 +60,9 @@ export interface CanvasLayerProps {
   // Video settings
   videoPauseOnSelect?: boolean;
 
+  // Selection settings
+  selectionPaddingMode?: "flush" | "responsive";
+
   // Event handlers
   onCanvasMouseDown: (e: React.MouseEvent) => void;
   onCanvasMouseMove: (e: React.MouseEvent) => void;
@@ -129,6 +132,7 @@ export function CanvasLayer({
   selectionColor,
   hoverColor,
   videoPauseOnSelect = false,
+  selectionPaddingMode = "flush",
   onCanvasMouseDown,
   onCanvasMouseMove,
   onCanvasMouseUp,
@@ -292,6 +296,7 @@ export function CanvasLayer({
           selectionColor={selectionColor}
           hoverColor={hoverColor}
           videoPauseOnSelect={videoPauseOnSelect}
+          selectionPaddingMode={selectionPaddingMode}
           onSetActiveToolbar={onSetActiveToolbar}
           onActivateToolbarSystem={onActivateToolbarSystem}
           onObjectHoverEnter={onToolbarHoverEnter}
@@ -318,6 +323,7 @@ export function CanvasLayer({
               maxY={selectionBounds.maxY}
               zoomLevel={zoomLevel}
               selectionColor={selectionColor}
+              paddingMode={selectionPaddingMode}
               onResizeStart={onResizeStart}
             />
           )}

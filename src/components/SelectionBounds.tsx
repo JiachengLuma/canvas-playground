@@ -9,6 +9,7 @@ interface SelectionBoundsProps {
   maxY: number;
   zoomLevel: number;
   selectionColor: string;
+  paddingMode?: "flush" | "responsive";
   onResizeStart?: (corner: string, e: React.MouseEvent) => void;
 }
 
@@ -19,6 +20,7 @@ export function SelectionBounds({
   maxY,
   zoomLevel,
   selectionColor,
+  paddingMode = "flush",
   onResizeStart,
 }: SelectionBoundsProps) {
   const [isShiftPressed, setIsShiftPressed] = useState(false);
@@ -52,9 +54,12 @@ export function SelectionBounds({
   const viewportHandleSize = 10 / zoomLevel;
   const viewportHandleBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
   const viewportBorderRadius = 5 / zoomLevel;
-  // Dynamic selection gap based on bounds size: 2px (normal), 1px (small/tiny), 0.5px (micro)
-  const selectionGapInScreenPx = getSelectionGap(width, height, zoomLevel);
-  const viewportPadding = selectionGapInScreenPx / zoomLevel;
+
+  // Calculate padding based on mode
+  const viewportPadding =
+    paddingMode === "responsive"
+      ? getSelectionGap(width, height, zoomLevel) / zoomLevel
+      : 0;
 
   return (
     <motion.div
@@ -64,14 +69,26 @@ export function SelectionBounds({
       transition={{ duration: 0.1, ease: "easeOut" }}
       style={{
         position: "absolute",
-        left: minX - viewportPadding,
-        top: minY - viewportPadding,
-        width: width + viewportPadding * 2,
-        height: height + viewportPadding * 2,
+        // For flush mode: position exactly at object bounds
+        // For responsive mode: use the calculated padding
+        left: paddingMode === "flush" ? minX : minX - viewportPadding,
+        top: paddingMode === "flush" ? minY : minY - viewportPadding,
+        // For flush mode: exact object dimensions
+        // For responsive mode: add padding
+        width: paddingMode === "flush" ? width : width + viewportPadding * 2,
+        height: paddingMode === "flush" ? height : height + viewportPadding * 2,
         pointerEvents: "none",
-        // Use outline instead of border so it renders outside the box
-        outline: `${viewportBorderWidth}px solid ${selectionColor}`,
-        outlineOffset: 0,
+        // For flush mode: border inside the box (inset style, no gap on outside)
+        // For responsive mode: outline outside the box
+        ...(paddingMode === "flush"
+          ? {
+              border: `${viewportBorderWidth}px solid ${selectionColor}`,
+              boxSizing: "border-box",
+            }
+          : {
+              outline: `${viewportBorderWidth}px solid ${selectionColor}`,
+              outlineOffset: 0,
+            }),
         borderRadius: viewportBorderRadius,
         zIndex: 500, // Higher z-index to ensure selection is visible above all objects
       }}

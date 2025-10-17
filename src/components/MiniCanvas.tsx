@@ -740,9 +740,49 @@ export function MiniCanvas({ subsectionId }: MiniCanvasProps) {
 
   // Update objects when subsection changes
   useEffect(() => {
-    canvas.setObjects(getExampleObjects(subsectionId));
+    const objects = getExampleObjects(subsectionId);
+    canvas.setObjects(objects);
     selection.deselectAll();
-    canvas.resetZoom();
+
+    // Center the objects in the viewport
+    if (objects.length > 0 && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+
+      // Calculate bounds of all objects
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
+      objects.forEach((obj) => {
+        minX = Math.min(minX, obj.x);
+        minY = Math.min(minY, obj.y);
+        maxX = Math.max(maxX, obj.x + obj.width);
+        maxY = Math.max(maxY, obj.y + obj.height);
+      });
+
+      // Calculate center of content
+      const contentWidth = maxX - minX;
+      const contentHeight = maxY - minY;
+      const contentCenterX = minX + contentWidth / 2;
+      const contentCenterY = minY + contentHeight / 2;
+
+      // Calculate zoom level to fit content with padding
+      const paddingFactor = 0.85; // 85% of viewport (15% padding)
+      const zoomX = (rect.width * paddingFactor) / contentWidth;
+      const zoomY = (rect.height * paddingFactor) / contentHeight;
+      const newZoom = Math.min(Math.max(Math.min(zoomX, zoomY), 0.3), 1.5);
+
+      // Calculate pan offset to center content
+      const viewportCenterX = rect.width / 2;
+      const viewportCenterY = rect.height / 2;
+      const newPanX = viewportCenterX - contentCenterX * newZoom;
+      const newPanY = viewportCenterY - contentCenterY * newZoom;
+
+      canvas.setZoomLevel(newZoom);
+      canvas.setPanOffset({ x: newPanX, y: newPanY });
+    } else {
+      canvas.resetZoom();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subsectionId]);
 
@@ -1221,6 +1261,8 @@ export function MiniCanvas({ subsectionId }: MiniCanvasProps) {
         selectionBounds={selection.selectionBounds}
         selectedObjectTypes={selectedObjectTypes}
         multiSelectColorTag="none"
+        selectionColor="#3b82f6"
+        hoverColor="rgba(59, 130, 246, 0.1)"
         isDrawingFrame={false}
         frameDrawStart={{ x: 0, y: 0 }}
         frameDrawCurrent={{ x: 0, y: 0 }}
@@ -1264,6 +1306,7 @@ export function MiniCanvas({ subsectionId }: MiniCanvasProps) {
         onDuplicate={handleDuplicate}
         onRotate={handleRotate}
         onColorTagChange={handleColorTagChange}
+        onMultiSelectColorTagChange={() => {}}
         onContentUpdate={handleContentUpdate}
         onSetActiveToolbar={toolbar.setActiveToolbarId}
         onActivateToolbarSystem={() => toolbar.setToolbarSystemActivated(true)}
@@ -1279,6 +1322,7 @@ export function MiniCanvas({ subsectionId }: MiniCanvasProps) {
         onMore={() => {}}
         onDownload={() => {}}
         onFrameSelection={() => {}}
+        onFrameSelectionWithAutolayout={() => {}}
         onDragHandleStart={handleDragHandleStart}
       />
 

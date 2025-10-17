@@ -40,6 +40,7 @@ interface CanvasObjectProps {
   selectionColor: string;
   hoverColor: string;
   videoPauseOnSelect?: boolean;
+  selectionPaddingMode?: "flush" | "responsive";
   onSetActiveToolbar: (id: string | null) => void;
   onActivateToolbarSystem: () => void;
   onObjectHoverEnter: (id: string) => void;
@@ -76,6 +77,7 @@ export function CanvasObject({
   selectionColor,
   hoverColor,
   videoPauseOnSelect = false,
+  selectionPaddingMode = "flush",
   onSetActiveToolbar,
   onActivateToolbarSystem,
   onObjectHoverEnter,
@@ -733,7 +735,8 @@ export function CanvasObject({
     object.height,
     zoomLevel
   );
-  const viewportSelectionGap = selectionGapInScreenPx / zoomLevel;
+  const viewportSelectionGap =
+    selectionPaddingMode === "flush" ? 0 : selectionGapInScreenPx / zoomLevel;
 
   // Show all 4 corner handles using unified size classification
   // Tiny objects (< 60px) show only 1 handle, others show all 4
@@ -873,7 +876,8 @@ export function CanvasObject({
             bottom: 0,
             // Use outline instead of border so it renders outside the box
             outline: `${viewportBorderWidth}px solid ${selectionColor}`,
-            outlineOffset: viewportSelectionGap, // Dynamic gap based on object size
+            outlineOffset:
+              selectionPaddingMode === "flush" ? 0 : viewportSelectionGap, // 0px for flush, dynamic gap for responsive
             borderRadius: viewportBorderRadius,
             zIndex: 10, // Above content to be visible
           }}

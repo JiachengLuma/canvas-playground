@@ -6,28 +6,28 @@ The UI adapts based on **4 size states** determined by the object's smaller scre
 
 ## The 4 States
 
-### 🔴 **Micro** (≤ 10px)
+### Micro (≤ 10px)
 
 - **Corner Handles**: 1 only (top-right)
 - **Drag Handle**: Hidden
 - **Toolbar**: Hidden
 - **Heading**: Hidden
 
-### 🟠 **Tiny** (10-30px)
+### Tiny (10-30px)
 
 - **Corner Handles**: 1 only (top-right)
 - **Drag Handle**: Hidden
 - **Toolbar**: Ellipsis (compact mode)
 - **Heading**: Hidden
 
-### 🟡 **Small** (30-120px)
+### Small (30-120px)
 
 - **Corner Handles**: All 4
 - **Drag Handle**: Visible
 - **Toolbar**: Full buttons
 - **Heading**: Hidden
 
-### 🟢 **Normal** (≥ 120px)
+### Normal (≥ 120px)
 
 - **Corner Handles**: All 4
 - **Drag Handle**: Visible

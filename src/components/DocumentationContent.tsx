@@ -38,10 +38,12 @@ export const getDocumentationSections = (): DocSection[] => [
               <ul className="list-disc list-inside space-y-1 text-blue-800 text-sm">
                 <li>Infinite panning and zooming canvas</li>
                 <li>Multiple object types with unique behaviors</li>
+                <li>Smart hover-based toolbar with smooth animations</li>
                 <li>
-                  Smart hover-based toolbar system (only for artifacts & frames)
+                  Custom video player with hover controls and progress bar
                 </li>
                 <li>Advanced frame system with auto-layout</li>
+                <li>Scale-aware UI that adapts to zoom levels</li>
                 <li>Color tagging for all objects</li>
                 <li>Keyboard shortcuts for productivity</li>
               </ul>
@@ -261,6 +263,24 @@ export const getDocumentationSections = (): DocSection[] => [
               </div>
 
               <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Smooth Animations</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  Toolbar position animates smoothly during zoom transitions:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>
+                    Spring-based animation when zooming in/out on same object
+                  </li>
+                  <li>Toolbar glides smoothly to new position</li>
+                  <li>
+                    Object header fade-in/out accompanied by position animation
+                  </li>
+                  <li>Instant snap when switching between different objects</li>
+                  <li>No animation during drag or resize operations</li>
+                </ul>
+              </div>
+
+              <div className="border rounded-lg p-4">
                 <h3 className="font-semibold mb-2">Zoom Threshold</h3>
                 <p className="text-sm text-gray-600">
                   Hover toolbar only appears when zoom level is{" "}
@@ -362,7 +382,11 @@ export const getDocumentationSections = (): DocSection[] => [
               <div className="border rounded-lg p-4">
                 <h3 className="font-semibold mb-2">Video</h3>
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                  <li>Duration indicator shown in bottom-left</li>
+                  <li>Custom video player with hover controls</li>
+                  <li>Duration pill in bottom-left (play icon + duration)</li>
+                  <li>Hover to auto-play with smooth progress bar</li>
+                  <li>Click progress bar to scrub to any position</li>
+                  <li>Progress bar grows on hover for better interaction</li>
                   <li>Hover toolbar: Download, Rerun, Color Tag</li>
                   <li>Drag handle (⋮⋮) when selected</li>
                   <li>Metadata header on select</li>
@@ -577,6 +601,99 @@ export const getDocumentationSections = (): DocSection[] => [
     id: "features",
     title: "Features",
     subsections: [
+      {
+        id: "video-player",
+        title: "Video Player",
+        content: (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold">Custom Video Player</h2>
+            <p className="text-gray-600">
+              Videos feature a custom player with hover controls and smooth
+              interactions.
+            </p>
+
+            <div className="space-y-3">
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Duration Pill</h3>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>Located in bottom-left corner</li>
+                  <li>Shows play icon and video duration</li>
+                  <li>Translucent background with backdrop blur</li>
+                  <li>Automatically hidden when video is selected</li>
+                  <li>Duration formatted (e.g., "5s", "1m 30s")</li>
+                </ul>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Hover Behavior</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  When you hover over a video (without selecting):
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>Video auto-plays (muted, loops)</li>
+                  <li>Duration pill background disappears (text remains)</li>
+                  <li>Custom progress bar appears at bottom</li>
+                  <li>Smooth 60fps progress animation</li>
+                  <li>Video resets to start when hover ends</li>
+                </ul>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Progress Bar</h3>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>Rounded pill shape at bottom edge</li>
+                  <li>Dark background with white progress indicator</li>
+                  <li>Interactive - grows from 2px to 6px on hover</li>
+                  <li>Click anywhere to scrub to that position</li>
+                  <li>Precise seeking by clicking specific time</li>
+                </ul>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Scale-Aware Design</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  All video controls scale inversely with zoom level:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>UI elements maintain consistent visual size</li>
+                  <li>
+                    Controls auto-hide when video is too small (under 40px)
+                  </li>
+                  <li>Readable at all zoom levels</li>
+                  <li>No UI clutter at small sizes</li>
+                </ul>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Selected State</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  When video is selected:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>Native browser controls appear</li>
+                  <li>Custom controls hidden</li>
+                  <li>Full playback capabilities available</li>
+                  <li>Volume control, fullscreen, etc.</li>
+                </ul>
+              </div>
+
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h3 className="font-semibold text-purple-900 mb-2">
+                  Technical Features
+                </h3>
+                <ul className="list-disc list-inside space-y-1 text-sm text-purple-800">
+                  <li>
+                    Cross-browser compatible (Chrome, Safari, Firefox, Edge)
+                  </li>
+                  <li>RequestAnimationFrame for smooth 60fps updates</li>
+                  <li>No native controls shown in custom mode</li>
+                  <li>Graceful error handling for playback issues</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        ),
+      },
       {
         id: "color-tags",
         title: "Color Tags",
