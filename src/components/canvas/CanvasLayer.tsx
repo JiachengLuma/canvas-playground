@@ -63,6 +63,9 @@ export interface CanvasLayerProps {
   // Selection settings
   selectionPaddingMode?: "flush" | "responsive";
 
+  // Label settings
+  frameLabelPosition?: "background" | "drag-handle";
+
   // Event handlers
   onCanvasMouseDown: (e: React.MouseEvent) => void;
   onCanvasMouseMove: (e: React.MouseEvent) => void;
@@ -82,6 +85,7 @@ export interface CanvasLayerProps {
   onColorTagChange: (id: string) => void;
   onMultiSelectColorTagChange: () => void; // Multi-select color tag change
   onMultiLabelBgColorChange?: () => void; // Multi-select label bg color change
+  onNoteColorChange?: (id: string) => void; // Note color change for sticky notes (handled by note itself)
   onContentUpdate: (id: string, content: string) => void;
   onLabelBgColorChange?: (id: string) => void;
   onNameChange?: (id: string, newName: string) => void;
@@ -136,6 +140,7 @@ export function CanvasLayer({
   hoverColor,
   videoPauseOnSelect = false,
   selectionPaddingMode = "flush",
+  frameLabelPosition = "background",
   onCanvasMouseDown,
   onCanvasMouseMove,
   onCanvasMouseUp,
@@ -152,6 +157,7 @@ export function CanvasLayer({
   onColorTagChange,
   onMultiSelectColorTagChange,
   onMultiLabelBgColorChange,
+  onNoteColorChange,
   onContentUpdate,
   onLabelBgColorChange,
   onNameChange,
@@ -303,6 +309,7 @@ export function CanvasLayer({
           hoverColor={hoverColor}
           videoPauseOnSelect={videoPauseOnSelect}
           selectionPaddingMode={selectionPaddingMode}
+          frameLabelPosition={frameLabelPosition}
           onSetActiveToolbar={onSetActiveToolbar}
           onActivateToolbarSystem={onActivateToolbarSystem}
           onObjectHoverEnter={onToolbarHoverEnter}
@@ -319,6 +326,7 @@ export function CanvasLayer({
           onContentUpdate={onContentUpdate}
           onLabelBgColorChange={onLabelBgColorChange}
           onNameChange={onNameChange}
+          onNoteColorChange={onNoteColorChange}
         />
 
         {/* Selection Bounds */}

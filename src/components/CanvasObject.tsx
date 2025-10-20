@@ -15,6 +15,7 @@ import {
   LabelBgColor,
 } from "../types";
 import { VideoPlayer } from "./VideoPlayer";
+import { StickyNote } from "./StickyNote";
 import { shouldShowMetadata } from "../config/behaviorConfig";
 import { AgentFrameHeader } from "./AgentFrameEffects";
 import {
@@ -46,6 +47,7 @@ interface CanvasObjectProps {
   hoverColor: string;
   videoPauseOnSelect?: boolean;
   selectionPaddingMode?: "flush" | "responsive";
+  frameLabelPosition?: "background" | "drag-handle";
   onSetActiveToolbar: (id: string | null) => void;
   onActivateToolbarSystem: () => void;
   onObjectHoverEnter: (id: string) => void;
@@ -62,6 +64,7 @@ interface CanvasObjectProps {
   onResizeStart?: (corner: string, e: React.MouseEvent) => void;
   onLabelBgColorChange?: (id: string) => void;
   onNameChange?: (id: string, newName: string) => void;
+  onNoteColorChange?: (id: string) => void;
 }
 
 export function CanvasObject({
@@ -85,6 +88,7 @@ export function CanvasObject({
   hoverColor,
   videoPauseOnSelect = false,
   selectionPaddingMode = "flush",
+  frameLabelPosition = "background",
   onSetActiveToolbar,
   onActivateToolbarSystem,
   onObjectHoverEnter,
@@ -101,6 +105,7 @@ export function CanvasObject({
   onResizeStart,
   onLabelBgColorChange,
   onNameChange,
+  onNoteColorChange,
 }: CanvasObjectProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -491,29 +496,35 @@ export function CanvasObject({
         );
       case "sticky":
         const stickyObj = object as any;
-        const noteColor = stickyObj.noteColor || "#fef08a";
         return (
-          <div
-            className="w-full h-full p-4 flex flex-col rounded-lg shadow-md"
-            style={{ backgroundColor: noteColor }}
-          >
-            {stickyObj.noteTitle && (
-              <h3 className="font-semibold text-gray-900 mb-1">
-                {stickyObj.noteTitle}
-              </h3>
-            )}
-            {stickyObj.noteAuthor && (
-              <p className="text-xs text-gray-600 mb-3">
-                {new Date(
-                  object.metadata?.createdAt || Date.now()
-                ).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}{" "}
-                · {stickyObj.noteAuthor}
-              </p>
-            )}
-          </div>
+          <StickyNote
+            noteColor={stickyObj.noteColor || "#fef08a"}
+            noteTitle={stickyObj.noteTitle}
+            noteAuthor={stickyObj.noteAuthor}
+            content={stickyObj.content}
+            createdAt={object.metadata?.createdAt}
+            isSelected={isSelected}
+            onContentUpdate={
+              onContentUpdate
+                ? (content) => onContentUpdate(object.id, content)
+                : undefined
+            }
+            onTitleUpdate={
+              onContentUpdate
+                ? (title) =>
+                    onContentUpdate(
+                      object.id,
+                      JSON.stringify({
+                        noteTitle: title,
+                        content: stickyObj.content,
+                      })
+                    )
+                : undefined
+            }
+            onColorChange={
+              onNoteColorChange ? () => onNoteColorChange(object.id) : undefined
+            }
+          />
         );
       case "link":
         const linkObj = object as any;
@@ -529,7 +540,8 @@ export function CanvasObject({
 
         return (
           <div
-            className="w-full h-full bg-white rounded-lg overflow-hidden flex flex-col cursor-pointer"
+            className="w-full h-full bg-white overflow-hidden flex flex-col cursor-pointer"
+            style={{ borderRadius: "5px" }}
             onDoubleClick={(e) => {
               e.stopPropagation();
               if (linkObj.url) {
@@ -713,6 +725,9 @@ export function CanvasObject({
                   onRotate={onRotate}
                   onColorTagChange={onColorTagChange}
                   onContentUpdate={onContentUpdate}
+                  onLabelBgColorChange={onLabelBgColorChange}
+                  onNameChange={onNameChange}
+                  onNoteColorChange={onNoteColorChange}
                 />
               ))}
           </div>
@@ -968,36 +983,40 @@ export function CanvasObject({
                   }}
                 />
               )}
-              {/* Top-right - ALWAYS show (even at small zoom), but hide if color tag exists */}
-              {!colorTagColor && (
-                <motion.div
-                  className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
-                  initial={false}
-                  animate={{
-                    borderRadius: isShiftPressed ? "20%" : "50%", // Round by default, square when Shift
-                  }}
-                  transition={{
-                    duration: 0.15,
-                    ease: "easeInOut",
-                  }}
-                  style={{
-                    top: -(viewportHandleSize / 2 + viewportSelectionGap),
-                    right: -(viewportHandleSize / 2 + viewportSelectionGap),
-                    width: viewportHandleSize,
-                    height: viewportHandleSize,
-                    borderWidth: viewportHandleBorderWidth,
-                    borderColor: selectionColor,
-                    borderStyle: "solid",
-                    pointerEvents: "auto",
-                    boxSizing: "border-box",
-                  }}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onResizeStart("top-right", e);
-                  }}
-                />
-              )}
+              {/* Top-right - ALWAYS show (even at small zoom), but hide if color tag exists OR if label dot is showing */}
+              {!colorTagColor &&
+                !(
+                  frameLabelPosition === "drag-handle" &&
+                  getLabelBgColor(object.labelBgColor)
+                ) && (
+                  <motion.div
+                    className="absolute bg-white cursor-nesw-resize hover:bg-gray-50"
+                    initial={false}
+                    animate={{
+                      borderRadius: isShiftPressed ? "20%" : "50%", // Round by default, square when Shift
+                    }}
+                    transition={{
+                      duration: 0.15,
+                      ease: "easeInOut",
+                    }}
+                    style={{
+                      top: -(viewportHandleSize / 2 + viewportSelectionGap),
+                      right: -(viewportHandleSize / 2 + viewportSelectionGap),
+                      width: viewportHandleSize,
+                      height: viewportHandleSize,
+                      borderWidth: viewportHandleBorderWidth,
+                      borderColor: selectionColor,
+                      borderStyle: "solid",
+                      pointerEvents: "auto",
+                      boxSizing: "border-box",
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      onResizeStart("top-right", e);
+                    }}
+                  />
+                )}
               {/* Bottom-left - only show when object is large enough on screen */}
               {showAllHandles && (
                 <motion.div
@@ -1107,7 +1126,49 @@ export function CanvasObject({
         {renderContent()}
       </div>
 
-      {/* Color tag dot - shown when tag is set, always visible except when THIS object is being dragged */}
+      {/* Label color dot - shown at top-right when in "drag-handle" mode */}
+      {/* Replaces top-right corner handle and functions as resize handle */}
+      {(() => {
+        const labelColor = getLabelBgColor(object.labelBgColor);
+        const showLabelDot =
+          frameLabelPosition === "drag-handle" &&
+          labelColor &&
+          !(isDraggingAny && isSelected) &&
+          onResizeStart;
+
+        return showLabelDot ? (
+          <motion.div
+            className="absolute cursor-nesw-resize hover:scale-110 transition-transform duration-100"
+            initial={false}
+            animate={{
+              borderRadius: isShiftPressed ? "20%" : "50%",
+            }}
+            transition={{
+              duration: 0.15,
+              ease: "easeInOut",
+            }}
+            style={{
+              top: -(viewportColorTagSize / 2 + viewportSelectionGap),
+              right: -(viewportColorTagSize / 2 + viewportSelectionGap),
+              width: viewportColorTagSize,
+              height: viewportColorTagSize,
+              backgroundColor: labelColor,
+              border: `${2 / zoomLevel}px solid white`,
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
+              zIndex: 300,
+              pointerEvents: "auto",
+              boxSizing: "border-box",
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onResizeStart("top-right", e);
+            }}
+          />
+        ) : null;
+      })()}
+
+      {/* Color tag dot (original system) - shown when tag is set, always visible except when THIS object is being dragged */}
       {/* Now positioned at top-right and functions as a resize handle */}
       {colorTagColor && !(isDraggingAny && isSelected) && onResizeStart && (
         <motion.div
@@ -1156,20 +1217,26 @@ export function CanvasObject({
             zoomLevel
           );
 
-          // Colored labels: show at all scales except micro, even during multi-select
+          // Colored labels: only show when selected (not on idle/hover)
+          // When in "drag-handle" mode, show text but hide colored background
           // Normal labels: only show in 'normal' state when selected (and not in multi-select)
+          const showColoredBackground =
+            frameLabelPosition === "background" && bgColor;
           const shouldShow = bgColor
-            ? sizeState !== "micro"
+            ? isSelected && sizeState !== "micro" // Only show when selected
             : !isPartOfMultiSelect &&
               isSelected &&
               shouldShowObjectMetadata(object.width, object.height, zoomLevel);
 
           if (!shouldShow) return null;
 
+          // Use transparent styling when color is moved to dot
+          const effectiveBgColor = showColoredBackground ? bgColor : null;
+
           // Calculate scale for colored labels in tiny state (10-30px)
           // Scale from 0.5x at 10px to 1x at 30px
           let labelScale = 1;
-          if (bgColor && sizeState === "tiny") {
+          if (effectiveBgColor && sizeState === "tiny") {
             const screenHeight = object.height * zoomLevel;
             const screenWidth = object.width * zoomLevel;
             const smallerDimension = Math.min(screenHeight, screenWidth);
@@ -1181,10 +1248,10 @@ export function CanvasObject({
             <div
               style={{
                 position: "absolute",
-                left: 0,
+                left: effectiveBgColor ? 0 : 4 / zoomLevel,
                 // When colored: 20px label height + 2px gap
                 // When not colored (selected): use adaptive positioning for metadata
-                top: bgColor
+                top: effectiveBgColor
                   ? -22 / zoomLevel
                   : -(
                       (2 + 6 * Math.min(1, zoomLevel)) / zoomLevel +
@@ -1193,22 +1260,28 @@ export function CanvasObject({
                 pointerEvents: "auto",
                 zIndex: 1000,
                 fontSize: `${12 / zoomLevel}px`,
-                paddingLeft: bgColor
+                paddingLeft: effectiveBgColor
                   ? `${8 / zoomLevel}px`
                   : `${4 / zoomLevel}px`,
-                paddingRight: bgColor ? `${8 / zoomLevel}px` : 0,
-                backgroundColor: bgColor || "transparent",
-                borderRadius: bgColor ? `${6 / zoomLevel}px` : 0,
-                height: bgColor ? `${20 / zoomLevel}px` : "auto",
+                paddingRight: effectiveBgColor ? `${8 / zoomLevel}px` : 0,
+                backgroundColor: effectiveBgColor || "transparent",
+                borderRadius: effectiveBgColor ? `${6 / zoomLevel}px` : 0,
+                height: effectiveBgColor ? `${20 / zoomLevel}px` : "auto",
                 display: "flex",
                 alignItems: "center",
-                color: bgColor ? "rgba(255, 255, 255, 0.9)" : undefined,
-                transform: bgColor ? `scale(${labelScale})` : undefined,
+                color: effectiveBgColor
+                  ? "rgba(255, 255, 255, 0.9)"
+                  : "rgba(0, 0, 0, 0.7)",
+                transform: effectiveBgColor
+                  ? `scale(${labelScale})`
+                  : undefined,
                 transformOrigin: "left center",
                 transition: "transform 0.15s ease-out",
               }}
               className={
-                bgColor ? "cursor-move" : "text-muted-foreground cursor-move"
+                effectiveBgColor
+                  ? "cursor-move"
+                  : "text-muted-foreground cursor-move"
               }
               onMouseDown={(e) => {
                 if (isEditingText) {
@@ -1454,6 +1527,7 @@ export function CanvasObject({
                 onLabelBgColorClick={handleLabelBgColorClick}
                 onDoubleClick={handleFrameNameDoubleClick}
                 isEditingName={isEditingFrameName}
+                frameLabelPosition={frameLabelPosition}
                 onNameBlur={(newName) => {
                   if (onNameChange && newName !== object.name) {
                     onNameChange(object.id, newName);
@@ -1465,20 +1539,27 @@ export function CanvasObject({
           }
 
           // Regular frame label
+          // When in "drag-handle" mode, hide the colored background but keep the text
+          const showColoredBackground =
+            frameLabelPosition === "background" && bgColor;
+
+          // Use transparent styling when color is moved to dot
+          const effectiveBgColor = showColoredBackground ? bgColor : null;
+
           return (
             <div
               className="absolute flex items-center cursor-move"
               style={{
                 top: -22 / zoomLevel, // 20px label height + 2px gap
-                left: bgColor ? 0 : 4 / zoomLevel,
-                height: bgColor ? 20 / zoomLevel : "auto",
-                backgroundColor: bgColor || "transparent",
-                borderRadius: bgColor ? `${6 / zoomLevel}px` : 0,
-                paddingLeft: bgColor ? 8 / zoomLevel : 0,
-                paddingRight: bgColor ? 8 / zoomLevel : 0,
-                gap: bgColor ? `${4 / zoomLevel}px` : 0,
+                left: effectiveBgColor ? 0 : 4 / zoomLevel,
+                height: effectiveBgColor ? 20 / zoomLevel : "auto",
+                backgroundColor: effectiveBgColor || "transparent",
+                borderRadius: effectiveBgColor ? `${6 / zoomLevel}px` : 0,
+                paddingLeft: effectiveBgColor ? 8 / zoomLevel : 0,
+                paddingRight: effectiveBgColor ? 8 / zoomLevel : 0,
+                gap: effectiveBgColor ? `${4 / zoomLevel}px` : 0,
                 fontSize: `${12 / zoomLevel}px`,
-                color: bgColor
+                color: effectiveBgColor
                   ? "rgba(255, 255, 255, 0.9)"
                   : "rgba(0, 0, 0, 0.7)",
                 lineHeight: `${16 / zoomLevel}px`,
@@ -1489,7 +1570,9 @@ export function CanvasObject({
                 maxWidth: `${object.width - 8 / zoomLevel}px`,
                 zIndex: 50,
                 pointerEvents: "auto",
-                transform: bgColor ? `scale(${labelScale})` : undefined,
+                transform: effectiveBgColor
+                  ? `scale(${labelScale})`
+                  : undefined,
                 transformOrigin: "left center",
                 transition: "transform 0.15s ease-out",
               }}

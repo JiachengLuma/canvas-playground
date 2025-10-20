@@ -107,7 +107,7 @@ export function createSticky(x: number, y: number): StickyObject {
     ...createBaseObject("sticky", x, y, 250, 180),
     type: "sticky",
     name: "Sticky Note",
-    content: "Note content here...",
+    content: "Can we try a bit more motion blur here...Something like the Wong Kai wei film",
     noteColor,
     noteTitle: "Note",
     noteAuthor: "@User",

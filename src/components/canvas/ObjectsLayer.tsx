@@ -21,6 +21,7 @@ interface ObjectsLayerProps {
   hoverColor: string;
   videoPauseOnSelect?: boolean;
   selectionPaddingMode?: "flush" | "responsive";
+  frameLabelPosition?: "background" | "drag-handle";
   onSetActiveToolbar: (id: string | null) => void;
   onActivateToolbarSystem: () => void;
   onObjectHoverEnter: () => void;
@@ -37,6 +38,7 @@ interface ObjectsLayerProps {
   onContentUpdate: (id: string, content: string) => void;
   onLabelBgColorChange?: (id: string) => void;
   onNameChange?: (id: string, newName: string) => void;
+  onNoteColorChange?: (id: string) => void;
 }
 
 export function ObjectsLayer({
@@ -54,6 +56,7 @@ export function ObjectsLayer({
   hoverColor,
   videoPauseOnSelect = false,
   selectionPaddingMode = "flush",
+  frameLabelPosition = "background",
   onSetActiveToolbar,
   onActivateToolbarSystem,
   onObjectHoverEnter,
@@ -70,6 +73,7 @@ export function ObjectsLayer({
   onContentUpdate,
   onLabelBgColorChange,
   onNameChange,
+  onNoteColorChange,
 }: ObjectsLayerProps) {
   // Filter out children of frames with autolayout enabled - they'll be rendered inside their parent
   const topLevelObjects = objects.filter((obj) => {
@@ -126,6 +130,7 @@ export function ObjectsLayer({
           hoverColor={hoverColor}
           videoPauseOnSelect={videoPauseOnSelect}
           selectionPaddingMode={selectionPaddingMode}
+          frameLabelPosition={frameLabelPosition}
           onSetActiveToolbar={onSetActiveToolbar}
           onActivateToolbarSystem={onActivateToolbarSystem}
           onObjectHoverEnter={onObjectHoverEnter}
@@ -142,6 +147,7 @@ export function ObjectsLayer({
           onContentUpdate={onContentUpdate}
           onLabelBgColorChange={onLabelBgColorChange}
           onNameChange={onNameChange}
+          onNoteColorChange={onNoteColorChange}
         />
       ))}
     </>

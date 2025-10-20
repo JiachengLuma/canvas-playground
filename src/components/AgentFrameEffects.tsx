@@ -20,6 +20,7 @@ interface AgentFrameHeaderProps {
   onDoubleClick?: (e: React.MouseEvent) => void;
   isEditingName?: boolean;
   onNameBlur?: (newName: string) => void;
+  frameLabelPosition?: "background" | "drag-handle";
 }
 
 export function AgentFrameHeader({
@@ -34,6 +35,7 @@ export function AgentFrameHeader({
   onDoubleClick,
   isEditingName = false,
   onNameBlur,
+  frameLabelPosition = "background",
 }: AgentFrameHeaderProps) {
   const headerHeight = 20 / zoomLevel;
   const fontSize = 12 / zoomLevel;
@@ -57,14 +59,21 @@ export function AgentFrameHeader({
     }
   };
 
-  const bgColor = getLabelBgColor(labelBgColor);
+  const rawBgColor = getLabelBgColor(labelBgColor);
+
+  // When in "drag-handle" mode, hide the colored background but keep the text
+  const showColoredBackground =
+    frameLabelPosition === "background" && rawBgColor !== "transparent";
+
+  // Use transparent styling when color is moved to dot
+  const bgColor = showColoredBackground ? rawBgColor : "transparent";
 
   return (
     <motion.div
       className="absolute flex items-center cursor-move overflow-hidden"
       style={{
         top: -headerHeight - 2 / zoomLevel, // Add 2px gap between label and frame
-        left: 0,
+        left: bgColor !== "transparent" ? 0 : 4 / zoomLevel,
         height: headerHeight,
         backgroundColor: bgColor,
         borderRadius: bgColor !== "transparent" ? `${6 / zoomLevel}px` : 0,

@@ -153,6 +153,48 @@ export const createObjectHandlers = (params: ObjectHandlersParams) => {
     }
   };
 
+  const handleNoteColorChange = (id: string) => {
+    const obj = objects.find((o) => o.id === id) as any;
+    if (!obj || obj.type !== "sticky") return;
+
+    // Cycle through note colors
+    const colors = ["#fef08a", "#bfdbfe", "#fecaca", "#d9f99d", "#e9d5ff"];
+    const currentIndex = colors.indexOf(obj.noteColor || "#fef08a");
+    const nextColor = colors[(currentIndex + 1) % colors.length];
+
+    updateObject(id, { noteColor: nextColor });
+
+    // Keep toolbar visible
+    setActiveToolbarId(id);
+    handleHoverEnter();
+  };
+
+  const handleMultiNoteColorChange = () => {
+    if (selectedIds.length === 0) return;
+
+    // Get the note color of the first selected sticky note
+    const firstObj = objects.find((o) => o.id === selectedIds[0]) as any;
+    if (!firstObj || firstObj.type !== "sticky") return;
+
+    const colors = ["#fef08a", "#bfdbfe", "#fecaca", "#d9f99d", "#e9d5ff"];
+    const currentIndex = colors.indexOf(firstObj.noteColor || "#fef08a");
+    const nextColor = colors[(currentIndex + 1) % colors.length];
+
+    // Apply the SAME next color to ALL selected sticky notes
+    selectedIds.forEach((id) => {
+      const obj = objects.find((o) => o.id === id);
+      if (obj?.type === "sticky") {
+        updateObject(id, { noteColor: nextColor });
+      }
+    });
+
+    // Keep toolbar visible
+    if (selectedIds[0]) {
+      setActiveToolbarId(selectedIds[0]);
+      handleHoverEnter();
+    }
+  };
+
   return {
     handleDelete,
     handleDuplicate,
@@ -163,6 +205,8 @@ export const createObjectHandlers = (params: ObjectHandlersParams) => {
     handleContentUpdate,
     handleLabelBgColorChange,
     handleNameChange,
+    handleNoteColorChange,
+    handleMultiNoteColorChange,
   };
 };
 

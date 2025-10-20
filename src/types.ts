@@ -108,6 +108,7 @@ export interface DoodleObject extends BaseCanvasObject {
 
 export interface StickyObject extends BaseCanvasObject {
   type: 'sticky';
+  content?: string; // Note content
   noteColor: string; // Background color of the sticky note
   noteTitle?: string;
   noteAuthor?: string;

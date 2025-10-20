@@ -66,6 +66,9 @@ export default function App() {
   const [selectionPaddingMode, setSelectionPaddingMode] = useState<
     "flush" | "responsive"
   >("flush");
+  const [frameLabelPosition, setFrameLabelPosition] = useState<
+    "background" | "drag-handle"
+  >("background");
 
   // ===== Wheel Event Handling =====
   useWheel({
@@ -341,6 +344,18 @@ export default function App() {
             selectionPaddingMode === "flush" ? "responsive" : "flush"
           )
         }
+        frameLabelPosition={frameLabelPosition}
+        onToggleFrameLabelPosition={() => {
+          const newPosition =
+            frameLabelPosition === "background" ? "drag-handle" : "background";
+          console.log(
+            "Toggle frame label position:",
+            frameLabelPosition,
+            "->",
+            newPosition
+          );
+          setFrameLabelPosition(newPosition);
+        }}
       />
 
       {/* Canvas */}
@@ -371,6 +386,7 @@ export default function App() {
         toolbarSystemActivated={toolbar.toolbarSystemActivated}
         videoPauseOnSelect={videoPauseOnSelect}
         selectionPaddingMode={selectionPaddingMode}
+        frameLabelPosition={frameLabelPosition}
         onCanvasMouseDown={mouseHandlers.handleCanvasMouseDown}
         onCanvasMouseMove={mouseHandlers.handleCanvasMouseMove}
         onCanvasMouseUp={mouseHandlers.handleCanvasMouseUp}
@@ -403,6 +419,7 @@ export default function App() {
           objectHandlers.handleMultiSelectColorTagChange
         }
         onMultiLabelBgColorChange={objectHandlers.handleMultiLabelBgColorChange}
+        onNoteColorChange={objectHandlers.handleNoteColorChange}
         onContentUpdate={objectHandlers.handleContentUpdate}
         onLabelBgColorChange={objectHandlers.handleLabelBgColorChange}
         onNameChange={objectHandlers.handleNameChange}
