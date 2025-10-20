@@ -72,6 +72,8 @@ export interface BaseCanvasObject {
   colorTag?: ColorTag;
   metadata?: ObjectMetadata;
   parentId?: string;            // If object is in a frame
+  labelBgColor?: LabelBgColor;  // Background color for heading/label
+  zIndex?: number;              // Rendering order (higher = on top)
 }
 
 // ============================================================================
@@ -201,3 +203,9 @@ export type CanvasObject =
 // ============================================================================
 
 export type ColorTag = 'none' | 'green' | 'yellow' | 'red';
+
+// ============================================================================
+// FRAME LABEL COLORS
+// ============================================================================
+
+export type LabelBgColor = 'none' | 'red' | 'green' | 'yellow';

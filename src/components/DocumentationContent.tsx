@@ -38,13 +38,14 @@ export const getDocumentationSections = (): DocSection[] => [
               <ul className="list-disc list-inside space-y-1 text-blue-800 text-sm">
                 <li>Infinite panning and zooming canvas</li>
                 <li>Multiple object types with unique behaviors</li>
-                <li>Smart hover-based toolbar with smooth animations</li>
+                <li>Click-based toolbar with smooth animations</li>
                 <li>
                   Custom video player with hover controls and progress bar
                 </li>
                 <li>Advanced frame system with auto-layout</li>
+                <li>Colored label system with per-object scaling</li>
                 <li>Scale-aware UI that adapts to zoom levels</li>
-                <li>Color tagging for all objects</li>
+                <li>Inline renaming with double-click</li>
                 <li>Keyboard shortcuts for productivity</li>
               </ul>
             </div>
@@ -144,7 +145,8 @@ export const getDocumentationSections = (): DocSection[] => [
                     Resize handles (for resizable objects: PDFs, artifacts,
                     frames)
                   </li>
-                  <li>Hover toolbar (for artifacts, PDFs, frames)</li>
+                  <li>Toolbar (for artifacts, PDFs, frames)</li>
+                  <li>Colored label (if assigned)</li>
                 </ul>
               </div>
 
@@ -190,10 +192,10 @@ export const getDocumentationSections = (): DocSection[] => [
       },
       {
         id: "hover-behavior",
-        title: "Hover Toolbar",
+        title: "Toolbar System",
         content: (
           <div className="space-y-4">
-            <h2 className="text-2xl font-semibold">Smart Hover Toolbar</h2>
+            <h2 className="text-2xl font-semibold">Click-Based Toolbar</h2>
 
             <div className="space-y-3">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -201,7 +203,7 @@ export const getDocumentationSections = (): DocSection[] => [
                   Which Objects Have Toolbars?
                 </h3>
                 <p className="text-sm text-blue-800 mb-2">
-                  Hover toolbars only appear for:
+                  Toolbars appear when you click to select:
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-sm text-blue-800">
                   <li>
@@ -221,44 +223,41 @@ export const getDocumentationSections = (): DocSection[] => [
               </div>
 
               <div className="border rounded-lg p-4">
-                <h3 className="font-semibold mb-2">Timing Behavior</h3>
+                <h3 className="font-semibold mb-2">Activation</h3>
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li>
-                    <strong>First hover:</strong> 1000ms (1 second) dwell time
-                    before toolbar appears
+                    <strong>Click object:</strong> Toolbar appears immediately
                   </li>
                   <li>
-                    <strong>Subsequent hovers:</strong> Instant appearance once
-                    system is activated
+                    <strong>Stays visible:</strong> Remains while object is
+                    selected
                   </li>
                   <li>
-                    <strong>Grace period:</strong> 150ms to move cursor from
-                    object to toolbar
+                    <strong>Hide toolbar:</strong> Click elsewhere or press
+                    Escape
                   </li>
                   <li>
-                    <strong>System reset:</strong> After 1000ms outside any
-                    hover, system resets to 1 second dwell
+                    <strong>Multi-select:</strong> Shows multi-select toolbar
+                    with batch operations
                   </li>
                 </ul>
+                <p className="text-sm text-gray-500 mt-2 italic">
+                  Previous hover-based system removed for better UX and
+                  reliability
+                </p>
               </div>
 
               <div className="border rounded-lg p-4">
                 <h3 className="font-semibold mb-2">Compact Mode</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  When an object is narrower than 60% of the full toolbar width,
-                  a compact toolbar appears:
+                  When object screen size is less than 30px (tiny state), a
+                  compact toolbar appears:
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                  <li>Shows "Tab | ..." button instead of full toolbar</li>
-                  <li>
-                    Clicking the compact button zooms the object to fit in view
-                  </li>
-                  <li>
-                    After zoom, full toolbar becomes visible at proper size
-                  </li>
-                  <li>
-                    Prevents toolbar from being wider than the object itself
-                  </li>
+                  <li>Shows ellipsis "..." button instead of full toolbar</li>
+                  <li>Same functionality, space-efficient layout</li>
+                  <li>Automatically switches to full toolbar when zoomed in</li>
+                  <li>Hidden completely in micro state (≤ 10px)</li>
                 </ul>
               </div>
 
@@ -278,15 +277,6 @@ export const getDocumentationSections = (): DocSection[] => [
                   <li>Instant snap when switching between different objects</li>
                   <li>No animation during drag or resize operations</li>
                 </ul>
-              </div>
-
-              <div className="border rounded-lg p-4">
-                <h3 className="font-semibold mb-2">Zoom Threshold</h3>
-                <p className="text-sm text-gray-600">
-                  Hover toolbar only appears when zoom level is{" "}
-                  <strong>20% or above</strong>. Below 20%, toolbar is hidden on
-                  hover (but still appears when object is selected).
-                </p>
               </div>
 
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
@@ -696,14 +686,14 @@ export const getDocumentationSections = (): DocSection[] => [
       },
       {
         id: "color-tags",
-        title: "Color Tags",
+        title: "Label System",
         content: (
           <div className="space-y-4">
-            <h2 className="text-2xl font-semibold">Color Tag System</h2>
+            <h2 className="text-2xl font-semibold">Colored Label System</h2>
 
             <div className="space-y-3">
               <div className="border rounded-lg p-4">
-                <h3 className="font-semibold mb-2">Available Tags</h3>
+                <h3 className="font-semibold mb-2">Available Colors</h3>
                 <div className="flex gap-3 items-center mb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded border-2 border-gray-300"></div>
@@ -714,26 +704,60 @@ export const getDocumentationSections = (): DocSection[] => [
                     <span className="text-sm">Red</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-yellow-500"></div>
-                    <span className="text-sm">Yellow</span>
-                  </div>
-                  <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded bg-green-500"></div>
                     <span className="text-sm">Green</span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded bg-yellow-500"></div>
+                    <span className="text-sm">Yellow</span>
+                  </div>
                 </div>
                 <p className="text-sm text-gray-600">
-                  Tags cycle in order: none → red → yellow → green → none
+                  Colors cycle in order: none → red → green → yellow → none
                 </p>
               </div>
 
               <div className="border rounded-lg p-4">
                 <h3 className="font-semibold mb-2">How to Use</h3>
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                  <li>Click the tag button in object toolbar (if available)</li>
-                  <li>Tag indicator appears in top-right corner of object</li>
-                  <li>Always visible (not just on hover/select)</li>
-                  <li>All object types support color tags</li>
+                  <li>Select object(s) to show toolbar</li>
+                  <li>Click the colored circle button in toolbar</li>
+                  <li>Label background appears on object heading</li>
+                  <li>Works with single or multi-select</li>
+                  <li>Double-click label to rename</li>
+                </ul>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-semibold text-blue-900 mb-2">
+                  Per-Object Scaling
+                </h3>
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>Important:</strong> Labels scale based on individual
+                  object size. At the same zoom level, large and small objects
+                  will have different label scales.
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-blue-800">
+                  <li>Micro (≤ 10px): Hidden</li>
+                  <li>Tiny (10-30px): 0.5x → 1.0x smooth scaling</li>
+                  <li>Small/Normal (≥ 30px): Full 1.0x scale</li>
+                </ul>
+                <p className="text-sm text-blue-800 mt-2">
+                  This ensures readability on small objects while maintaining
+                  visual hierarchy.
+                </p>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Visibility</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  Colored labels have independent visibility rules:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>Visible at tiny/small/normal states</li>
+                  <li>Remain visible during multi-select</li>
+                  <li>Independent of object selection state</li>
+                  <li>Only hide at micro state (≤ 10px)</li>
                 </ul>
               </div>
             </div>
@@ -852,6 +876,19 @@ export const getDocumentationSections = (): DocSection[] => [
                     </kbd>
                   </div>
                 </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <h3 className="font-semibold text-amber-900 mb-2">
+                  During Text Editing
+                </h3>
+                <p className="text-sm text-amber-800">
+                  All keyboard shortcuts are disabled when editing text
+                  (including label names, text objects, etc.). This allows
+                  natural text editing with Delete, Space, and other keys
+                  without triggering canvas actions. Press Enter or Escape to
+                  finish editing.
+                </p>
               </div>
 
               <div className="border rounded-lg p-4">

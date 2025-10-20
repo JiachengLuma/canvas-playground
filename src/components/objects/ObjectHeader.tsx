@@ -119,8 +119,12 @@ export function ObjectHeader({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation(); // Prevent Enter from triggering parent handlers
       handleSave();
     } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
       setEditValue(name);
       setIsEditing(false);
     }

@@ -38,6 +38,9 @@ import { createArtifactHandlers } from "./handlers/artifactHandlers";
 import { createMouseHandlers } from "./handlers/mouseHandlers";
 import { createCanvasHandlers } from "./handlers/canvasHandlers";
 
+// Utils
+import { promoteToHighestZIndex } from "./utils/canvasUtils";
+
 export default function App() {
   // ===== Refs =====
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -128,6 +131,27 @@ export default function App() {
   useEffect(() => {
     history.pushState(canvas.objects);
   }, [canvas.objects, history]);
+
+  // ===== Promote selected objects to highest z-index =====
+  useEffect(() => {
+    if (selection.selectedIds.length > 0) {
+      const updatedObjects = promoteToHighestZIndex(
+        canvas.objects,
+        selection.selectedIds
+      );
+
+      // Only update if any selected object's z-index actually changed
+      const hasChanged = selection.selectedIds.some((id) => {
+        const oldObj = canvas.objects.find((o) => o.id === id);
+        const newObj = updatedObjects.find((o) => o.id === id);
+        return oldObj && newObj && oldObj.zIndex !== newObj.zIndex;
+      });
+
+      if (hasChanged) {
+        canvas.setObjects(updatedObjects);
+      }
+    }
+  }, [selection.selectedIds]);
 
   // ===== Create Handlers =====
   const objectHandlers = createObjectHandlers({
@@ -378,7 +402,10 @@ export default function App() {
         onMultiSelectColorTagChange={
           objectHandlers.handleMultiSelectColorTagChange
         }
+        onMultiLabelBgColorChange={objectHandlers.handleMultiLabelBgColorChange}
         onContentUpdate={objectHandlers.handleContentUpdate}
+        onLabelBgColorChange={objectHandlers.handleLabelBgColorChange}
+        onNameChange={objectHandlers.handleNameChange}
         onSetActiveToolbar={toolbar.setActiveToolbarId}
         onActivateToolbarSystem={() => toolbar.setToolbarSystemActivated(true)}
         onToolbarHoverEnter={toolbar.handleHoverEnter}

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, useRef, useEffect } from "react";
-import { ObjectType, ColorTag, CanvasObject } from "../types";
+import { ObjectType, ColorTag, CanvasObject, LabelBgColor } from "../types";
 import {
   Tooltip,
   TooltipContent,
@@ -27,7 +27,9 @@ interface ContextToolbarProps {
   activeObject?: CanvasObject;
   onZoomToFit?: () => void; // Callback to zoom artifact to fit toolbar
   colorTag?: ColorTag;
-  onColorTagChange?: () => void;
+  // onColorTagChange?: () => void; // COMMENTED OUT: Now using labelBgColor instead
+  labelBgColor?: LabelBgColor;
+  onLabelBgColorChange?: () => void;
   onAIPrompt?: (prompt: string) => void;
   onConvertToVideo?: () => void;
   onRerun?: () => void;
@@ -48,7 +50,9 @@ export function ContextToolbar({
   activeObject,
   onZoomToFit,
   colorTag = "none",
-  onColorTagChange,
+  // onColorTagChange, // COMMENTED OUT
+  labelBgColor = "none",
+  onLabelBgColorChange,
   onAIPrompt,
   onConvertToVideo,
   onRerun,
@@ -65,32 +69,51 @@ export function ContextToolbar({
   const inputRef = useRef<HTMLInputElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
-  const getColorTagColor = () => {
-    switch (colorTag) {
+  // COMMENTED OUT: Color tag functionality - now using labelBgColor
+  // const getColorTagColor = () => {
+  //   switch (colorTag) {
+  //     case "green":
+  //       return "#22c55e";
+  //     case "yellow":
+  //       return "#eab308";
+  //     case "red":
+  //       return "#ef4444";
+  //     default:
+  //       return "transparent";
+  //   }
+  // };
+
+  // const getColorTagLabel = () => {
+  //   switch (colorTag) {
+  //     case "none":
+  //       return "Tag";
+  //     case "green":
+  //       return "Tag";
+  //     case "yellow":
+  //       return "Tag";
+  //     case "red":
+  //       return "Tag";
+  //     default:
+  //       return "Tag";
+  //   }
+  // };
+
+  // Get label background color
+  const getLabelBgColor = () => {
+    switch (labelBgColor) {
+      case "red":
+        return "#ef4444";
       case "green":
         return "#22c55e";
       case "yellow":
         return "#eab308";
-      case "red":
-        return "#ef4444";
       default:
         return "transparent";
     }
   };
 
-  const getColorTagLabel = () => {
-    switch (colorTag) {
-      case "none":
-        return "Tag";
-      case "green":
-        return "Tag";
-      case "yellow":
-        return "Tag";
-      case "red":
-        return "Tag";
-      default:
-        return "Tag";
-    }
+  const getLabelBgLabel = () => {
+    return labelBgColor === "none" ? "Label" : "Label";
   };
 
   // Focus input when entering prompt mode
@@ -407,8 +430,8 @@ export function ContextToolbar({
                   </Tooltip>
                 )}
 
-                {/* Color tag */}
-                {onColorTagChange && (
+                {/* COMMENTED OUT: Color tag button - now using label background color */}
+                {/* {onColorTagChange && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
@@ -449,6 +472,52 @@ export function ContextToolbar({
                       className="text-xs"
                     >
                       <p>{getColorTagLabel()}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )} */}
+
+                {/* Label background color button */}
+                {onLabelBgColorChange && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          onLabelBgColorChange();
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                        }}
+                        onMouseEnter={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onMouseLeave={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors p-1.5"
+                      >
+                        {labelBgColor !== "none" ? (
+                          <div
+                            className="w-4 h-4 rounded-full border-2 border-gray-300"
+                            style={{
+                              backgroundColor: getLabelBgColor(),
+                            }}
+                          />
+                        ) : (
+                          <Circle
+                            className="w-4 h-4 text-gray-700"
+                            strokeWidth={2}
+                          />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side={isVertical ? "left" : "top"}
+                      className="text-xs"
+                    >
+                      <p>{getLabelBgLabel()}</p>
                     </TooltipContent>
                   </Tooltip>
                 )}

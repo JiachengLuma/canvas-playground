@@ -9,7 +9,11 @@ import {
   Video,
   FileText,
 } from "lucide-react";
-import { CanvasObject as CanvasObjectType, ArtifactType } from "../types";
+import {
+  CanvasObject as CanvasObjectType,
+  ArtifactType,
+  LabelBgColor,
+} from "../types";
 import { VideoPlayer } from "./VideoPlayer";
 import { shouldShowMetadata } from "../config/behaviorConfig";
 import { AgentFrameHeader } from "./AgentFrameEffects";
@@ -17,6 +21,7 @@ import {
   shouldShowObjectMetadata,
   shouldShowAllCornerHandles,
   getSelectionGap,
+  getUISizeState,
 } from "../utils/canvasUtils";
 
 interface CanvasObjectProps {
@@ -55,6 +60,8 @@ interface CanvasObjectProps {
   onColorTagChange: (id: string) => void;
   onContentUpdate?: (id: string, content: string) => void;
   onResizeStart?: (corner: string, e: React.MouseEvent) => void;
+  onLabelBgColorChange?: (id: string) => void;
+  onNameChange?: (id: string, newName: string) => void;
 }
 
 export function CanvasObject({
@@ -92,15 +99,19 @@ export function CanvasObject({
   onColorTagChange,
   onContentUpdate,
   onResizeStart,
+  onLabelBgColorChange,
+  onNameChange,
 }: CanvasObjectProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isEditingText, setIsEditingText] = useState(false);
+  const [isEditingFrameName, setIsEditingFrameName] = useState(false);
   const [isShiftPressed, setIsShiftPressed] = useState(false);
   const hasMovedDuringDrag = useRef(false);
   const dragStartPos = useRef({ x: 0, y: 0, altKey: false });
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
+  const frameNameRef = useRef<HTMLDivElement | null>(null);
 
   // Listen for Shift key to show proportional scale mode
   useEffect(() => {
@@ -764,6 +775,48 @@ export function CanvasObject({
 
   const colorTagColor = getColorTagColor();
 
+  // Helper to get label background color
+  const getLabelBgColor = (labelBgColor: LabelBgColor | undefined) => {
+    switch (labelBgColor) {
+      case "red":
+        return "#ef4444";
+      case "green":
+        return "#22c55e";
+      case "yellow":
+        return "#eab308";
+      default:
+        return null;
+    }
+  };
+
+  // Handle label background color cycling
+  const handleLabelBgColorClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onLabelBgColorChange) {
+      onLabelBgColorChange(object.id);
+    }
+  };
+
+  // Handle frame name editing
+  const handleFrameNameDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onNameChange) {
+      setIsEditingFrameName(true);
+      // Focus after state updates
+      setTimeout(() => {
+        if (frameNameRef.current) {
+          frameNameRef.current.focus();
+          // Select all text
+          const range = document.createRange();
+          range.selectNodeContents(frameNameRef.current);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+      }, 0);
+    }
+  };
+
   // Check if this is an autolayout frame
   const isAutolayoutFrame =
     object.type === "frame" && (object as any).autoLayout;
@@ -1090,46 +1143,142 @@ export function CanvasObject({
 
       {/* Metadata header - shown when selected (but not for frames or objects inside frames) */}
       {/* Metadata header - TYPE (left side) shown above object */}
-      {isSelected &&
-        !isPartOfMultiSelect &&
-        !isDraggingAny &&
+      {!isDraggingAny &&
         object.type !== "frame" &&
         object.state !== "generating" &&
         !object.parentId &&
         shouldShowMetadata(object.type) &&
-        shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              // Adaptive gap: closer at small zoom (same as right side)
-              top: -(
-                (2 + 6 * Math.min(1, zoomLevel)) / zoomLevel +
-                12 / zoomLevel
-              ),
-              pointerEvents: "auto",
-              zIndex: 1000,
-              fontSize: `${12 / zoomLevel}px`,
-              paddingLeft: `${4 / zoomLevel}px`,
-            }}
-            className="text-muted-foreground cursor-move"
-            onMouseDown={handleMouseDown}
-          >
-            <span
-              className="capitalize"
+        (() => {
+          const bgColor = getLabelBgColor(object.labelBgColor);
+          const sizeState = getUISizeState(
+            object.width,
+            object.height,
+            zoomLevel
+          );
+
+          // Colored labels: show at all scales except micro, even during multi-select
+          // Normal labels: only show in 'normal' state when selected (and not in multi-select)
+          const shouldShow = bgColor
+            ? sizeState !== "micro"
+            : !isPartOfMultiSelect &&
+              isSelected &&
+              shouldShowObjectMetadata(object.width, object.height, zoomLevel);
+
+          if (!shouldShow) return null;
+
+          // Calculate scale for colored labels in tiny state (10-30px)
+          // Scale from 0.5x at 10px to 1x at 30px
+          let labelScale = 1;
+          if (bgColor && sizeState === "tiny") {
+            const screenHeight = object.height * zoomLevel;
+            const screenWidth = object.width * zoomLevel;
+            const smallerDimension = Math.min(screenHeight, screenWidth);
+            // Map 10-30px to 0.5-1.0 scale
+            labelScale = 0.5 + ((smallerDimension - 10) / 20) * 0.5;
+          }
+
+          return (
+            <div
               style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                minWidth: 0,
-                maxWidth: `${object.width - 8 / zoomLevel}px`,
-                display: "inline-block",
+                position: "absolute",
+                left: 0,
+                // When colored: 20px label height + 2px gap
+                // When not colored (selected): use adaptive positioning for metadata
+                top: bgColor
+                  ? -22 / zoomLevel
+                  : -(
+                      (2 + 6 * Math.min(1, zoomLevel)) / zoomLevel +
+                      12 / zoomLevel
+                    ),
+                pointerEvents: "auto",
+                zIndex: 1000,
+                fontSize: `${12 / zoomLevel}px`,
+                paddingLeft: bgColor
+                  ? `${8 / zoomLevel}px`
+                  : `${4 / zoomLevel}px`,
+                paddingRight: bgColor ? `${8 / zoomLevel}px` : 0,
+                backgroundColor: bgColor || "transparent",
+                borderRadius: bgColor ? `${6 / zoomLevel}px` : 0,
+                height: bgColor ? `${20 / zoomLevel}px` : "auto",
+                display: "flex",
+                alignItems: "center",
+                color: bgColor ? "rgba(255, 255, 255, 0.9)" : undefined,
+                transform: bgColor ? `scale(${labelScale})` : undefined,
+                transformOrigin: "left center",
+                transition: "transform 0.15s ease-out",
+              }}
+              className={
+                bgColor ? "cursor-move" : "text-muted-foreground cursor-move"
+              }
+              onMouseDown={(e) => {
+                if (isEditingText) {
+                  e.stopPropagation();
+                  return;
+                }
+                handleMouseDown(e);
+              }}
+              // onClick={handleLabelBgColorClick} // COMMENTED OUT: Now handled by toolbar button
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                if (onNameChange) {
+                  setIsEditingText(true);
+                  setTimeout(() => {
+                    if (textRef.current) {
+                      textRef.current.focus();
+                      const range = document.createRange();
+                      range.selectNodeContents(textRef.current);
+                      const sel = window.getSelection();
+                      sel?.removeAllRanges();
+                      sel?.addRange(range);
+                    }
+                  }, 0);
+                }
               }}
             >
-              {object.type === "sticky" ? "Note" : object.type}
-            </span>
-          </div>
-        )}
+              <div
+                ref={textRef}
+                contentEditable={isEditingText}
+                suppressContentEditableWarning
+                onBlur={(e) => {
+                  if (isEditingText && onNameChange) {
+                    const newName = e.currentTarget.textContent || object.name;
+                    if (newName !== object.name) {
+                      onNameChange(object.id, newName);
+                    }
+                    setIsEditingText(false);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    e.stopPropagation(); // Prevent Enter from triggering parent handlers
+                    textRef.current?.blur();
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (textRef.current) {
+                      textRef.current.textContent = object.name;
+                    }
+                    setIsEditingText(false);
+                  }
+                }}
+                className={!isEditingText ? "capitalize" : ""}
+                style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
+                  maxWidth: `${object.width - 16 / zoomLevel}px`,
+                  display: "inline-block",
+                  outline: "none",
+                  cursor: isEditingText ? "text" : "move",
+                }}
+              >
+                {object.name}
+              </div>
+            </div>
+          );
+        })()}
 
       {/* Metadata header - CREATOR/DIMENSIONS (right side) also shown above object */}
       {isSelected &&
@@ -1265,6 +1414,31 @@ export function CanvasObject({
           const frameObj = object as any;
           const isAgentFrame = frameObj.createdBy === "agent";
           const isAgentCreating = frameObj.isAgentCreating || false;
+          const labelBgColor = frameObj.labelBgColor;
+          const bgColor = getLabelBgColor(labelBgColor);
+          const sizeState = getUISizeState(
+            object.width,
+            object.height,
+            zoomLevel
+          );
+
+          // Show label always, except when zoomed out too far (micro state)
+          // This ensures frame headings are visible by default
+          const shouldShowLabel = sizeState !== "micro";
+
+          // Don't show label if conditions not met
+          if (!shouldShowLabel) return null;
+
+          // Calculate scale for colored labels in tiny state (10-30px)
+          // Scale from 0.5x at 10px to 1x at 30px
+          let labelScale = 1;
+          if (bgColor && sizeState === "tiny") {
+            const screenHeight = object.height * zoomLevel;
+            const screenWidth = object.width * zoomLevel;
+            const smallerDimension = Math.min(screenHeight, screenWidth);
+            // Map 10-30px to 0.5-1.0 scale
+            labelScale = 0.5 + ((smallerDimension - 10) / 20) * 0.5;
+          }
 
           // Use agent frame header if it's an agent frame
           if (isAgentFrame) {
@@ -1275,6 +1449,17 @@ export function CanvasObject({
                 zoomLevel={zoomLevel}
                 frameWidth={object.width}
                 onMouseDown={handleMouseDown}
+                labelBgColor={labelBgColor}
+                labelScale={labelScale}
+                onLabelBgColorClick={handleLabelBgColorClick}
+                onDoubleClick={handleFrameNameDoubleClick}
+                isEditingName={isEditingFrameName}
+                onNameBlur={(newName) => {
+                  if (onNameChange && newName !== object.name) {
+                    onNameChange(object.id, newName);
+                  }
+                  setIsEditingFrameName(false);
+                }}
               />
             );
           }
@@ -1282,12 +1467,20 @@ export function CanvasObject({
           // Regular frame label
           return (
             <div
-              className="absolute text-xs font-normal cursor-move"
+              className="absolute flex items-center cursor-move"
               style={{
-                top: -20 / zoomLevel,
-                left: 4 / zoomLevel,
+                top: -22 / zoomLevel, // 20px label height + 2px gap
+                left: bgColor ? 0 : 4 / zoomLevel,
+                height: bgColor ? 20 / zoomLevel : "auto",
+                backgroundColor: bgColor || "transparent",
+                borderRadius: bgColor ? `${6 / zoomLevel}px` : 0,
+                paddingLeft: bgColor ? 8 / zoomLevel : 0,
+                paddingRight: bgColor ? 8 / zoomLevel : 0,
+                gap: bgColor ? `${4 / zoomLevel}px` : 0,
                 fontSize: `${12 / zoomLevel}px`,
-                color: "rgba(0, 0, 0, 0.7)",
+                color: bgColor
+                  ? "rgba(255, 255, 255, 0.9)"
+                  : "rgba(0, 0, 0, 0.7)",
                 lineHeight: `${16 / zoomLevel}px`,
                 fontFamily: "Graphik, sans-serif",
                 whiteSpace: "nowrap",
@@ -1296,10 +1489,55 @@ export function CanvasObject({
                 maxWidth: `${object.width - 8 / zoomLevel}px`,
                 zIndex: 50,
                 pointerEvents: "auto",
+                transform: bgColor ? `scale(${labelScale})` : undefined,
+                transformOrigin: "left center",
+                transition: "transform 0.15s ease-out",
               }}
-              onMouseDown={handleMouseDown}
+              onMouseDown={(e) => {
+                if (isEditingFrameName) {
+                  e.stopPropagation();
+                  return;
+                }
+                handleMouseDown(e);
+              }}
+              // onClick={handleLabelBgColorClick} // COMMENTED OUT: Now handled by toolbar button
+              onDoubleClick={handleFrameNameDoubleClick}
             >
-              {isAutolayoutFrame ? "Autolayout Frame" : "Frame"}
+              <div
+                ref={frameNameRef}
+                contentEditable={isEditingFrameName}
+                suppressContentEditableWarning
+                onBlur={(e) => {
+                  if (isEditingFrameName && onNameChange) {
+                    const newName = e.currentTarget.textContent || object.name;
+                    if (newName !== object.name) {
+                      onNameChange(object.id, newName);
+                    }
+                    setIsEditingFrameName(false);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    frameNameRef.current?.blur();
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    if (frameNameRef.current) {
+                      frameNameRef.current.textContent = object.name;
+                    }
+                    setIsEditingFrameName(false);
+                  }
+                }}
+                style={{
+                  outline: "none",
+                  cursor: isEditingFrameName ? "text" : "move",
+                  minWidth: isEditingFrameName
+                    ? `${100 / zoomLevel}px`
+                    : "auto",
+                }}
+              >
+                {object.name}
+              </div>
             </div>
           );
         })()}

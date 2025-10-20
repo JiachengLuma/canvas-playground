@@ -35,6 +35,7 @@ const getExampleObjects = (subsectionId: string | null): CanvasObjectType[] => {
         state: "idle",
         content: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4",
         colorTag: "green",
+        labelBgColor: "none",
       } as CanvasObjectType,
       {
         id: "demo-text-1",
@@ -968,6 +969,45 @@ export function MiniCanvas({ subsectionId }: MiniCanvasProps) {
     toolbar.handleHoverEnter();
   };
 
+  const handleLabelBgColorChange = (id: string) => {
+    const obj = canvas.objects.find((o) => o.id === id);
+    const colors = ["none", "red", "green", "yellow"];
+    const currentIndex = colors.indexOf(obj?.labelBgColor || "none");
+    const nextColor = colors[(currentIndex + 1) % colors.length];
+    canvas.updateObject(id, { labelBgColor: nextColor as any });
+
+    // Keep toolbar visible after clicking label color
+    toolbar.setActiveToolbarId(id);
+    toolbar.handleHoverEnter();
+  };
+
+  const handleMultiLabelBgColorChange = () => {
+    if (selection.selectedIds.length === 0) return;
+
+    // Get the label background color of the first selected object
+    const firstObj = canvas.objects.find(
+      (o) => o.id === selection.selectedIds[0]
+    );
+    const colors = ["none", "red", "green", "yellow"];
+    const currentIndex = colors.indexOf(firstObj?.labelBgColor || "none");
+    const nextColor = colors[(currentIndex + 1) % colors.length];
+
+    // Apply the SAME next color to ALL selected objects
+    selection.selectedIds.forEach((id) => {
+      canvas.updateObject(id, { labelBgColor: nextColor as any });
+    });
+
+    // Keep toolbar visible
+    if (selection.selectedIds[0]) {
+      toolbar.setActiveToolbarId(selection.selectedIds[0]);
+      toolbar.handleHoverEnter();
+    }
+  };
+
+  const handleNameChange = (id: string, newName: string) => {
+    canvas.updateObject(id, { name: newName });
+  };
+
   const handleContentUpdate = (id: string, content: string) => {
     canvas.updateObject(id, { content });
   };
@@ -1307,7 +1347,10 @@ export function MiniCanvas({ subsectionId }: MiniCanvasProps) {
         onRotate={handleRotate}
         onColorTagChange={handleColorTagChange}
         onMultiSelectColorTagChange={() => {}}
+        onMultiLabelBgColorChange={handleMultiLabelBgColorChange}
         onContentUpdate={handleContentUpdate}
+        onLabelBgColorChange={handleLabelBgColorChange}
+        onNameChange={handleNameChange}
         onSetActiveToolbar={toolbar.setActiveToolbarId}
         onActivateToolbarSystem={() => toolbar.setToolbarSystemActivated(true)}
         onToolbarHoverEnter={toolbar.handleHoverEnter}

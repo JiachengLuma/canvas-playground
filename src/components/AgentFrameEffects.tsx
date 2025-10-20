@@ -5,6 +5,8 @@
  */
 
 import { motion } from "motion/react";
+import { useRef } from "react";
+import { LabelBgColor } from "../types";
 
 interface AgentFrameHeaderProps {
   isCreating: boolean;
@@ -12,6 +14,12 @@ interface AgentFrameHeaderProps {
   zoomLevel: number;
   frameWidth: number;
   onMouseDown?: (e: React.MouseEvent) => void;
+  labelBgColor?: LabelBgColor;
+  labelScale?: number;
+  onLabelBgColorClick?: (e: React.MouseEvent) => void;
+  onDoubleClick?: (e: React.MouseEvent) => void;
+  isEditingName?: boolean;
+  onNameBlur?: (newName: string) => void;
 }
 
 export function AgentFrameHeader({
@@ -20,29 +28,60 @@ export function AgentFrameHeader({
   zoomLevel,
   frameWidth,
   onMouseDown,
+  labelBgColor,
+  labelScale = 1,
+  onLabelBgColorClick,
+  onDoubleClick,
+  isEditingName = false,
+  onNameBlur,
 }: AgentFrameHeaderProps) {
   const headerHeight = 20 / zoomLevel;
   const fontSize = 12 / zoomLevel;
   const orbSize = 8 / zoomLevel;
   const paddingX = 6 / zoomLevel;
   const gap = 4 / zoomLevel;
+  const frameNameRef = useRef<HTMLDivElement | null>(null);
+
+  // Helper to get label background color
+  const getLabelBgColor = (color: LabelBgColor | undefined) => {
+    if (isCreating) return "#000000"; // Black when creating
+    switch (color) {
+      case "red":
+        return "#ef4444";
+      case "green":
+        return "#22c55e";
+      case "yellow":
+        return "#eab308";
+      default:
+        return "transparent";
+    }
+  };
+
+  const bgColor = getLabelBgColor(labelBgColor);
 
   return (
     <motion.div
       className="absolute flex items-center cursor-move overflow-hidden"
       style={{
-        top: -headerHeight,
+        top: -headerHeight - 2 / zoomLevel, // Add 2px gap between label and frame
         left: 0,
         height: headerHeight,
-        backgroundColor: isCreating ? "#000000" : "transparent",
-        borderRadius: isCreating ? `${26 / zoomLevel}px` : 0,
-        paddingLeft: paddingX,
-        paddingRight: paddingX,
+        backgroundColor: bgColor,
+        borderRadius: bgColor !== "transparent" ? `${6 / zoomLevel}px` : 0,
+        paddingLeft:
+          bgColor !== "transparent" ? `${8 / zoomLevel}px` : paddingX,
+        paddingRight:
+          bgColor !== "transparent" ? `${8 / zoomLevel}px` : paddingX,
         gap: `${gap}px`,
         boxShadow: isCreating ? "0px 2px 2px 0px rgba(0,0,0,0.25)" : "none",
         zIndex: 50,
         pointerEvents: "auto",
         maxWidth: frameWidth,
+        transform:
+          bgColor !== "transparent" && labelScale !== 1
+            ? `scale(${labelScale})`
+            : undefined,
+        transformOrigin: "left center",
       }}
       initial={{ opacity: 0 }}
       animate={{
@@ -51,7 +90,25 @@ export function AgentFrameHeader({
       transition={{
         opacity: { duration: 0.3 },
       }}
-      onMouseDown={onMouseDown}
+      onMouseDown={(e) => {
+        if (isEditingName) {
+          e.stopPropagation();
+          return;
+        }
+        if (onMouseDown) {
+          onMouseDown(e);
+        }
+      }}
+      // onClick={(e) => {
+      //   if (!isCreating && onLabelBgColorClick) {
+      //     onLabelBgColorClick(e);
+      //   }
+      // }} // COMMENTED OUT: Now handled by toolbar button
+      onDoubleClick={(e) => {
+        if (!isCreating && onDoubleClick) {
+          onDoubleClick(e);
+        }
+      }}
     >
       {isCreating && (
         <>
@@ -129,21 +186,49 @@ export function AgentFrameHeader({
       )}
 
       {/* Frame Name Text */}
-      <span
+      <div
+        ref={frameNameRef}
+        contentEditable={isEditingName}
+        suppressContentEditableWarning
+        onBlur={(e) => {
+          if (isEditingName && onNameBlur) {
+            const newName = e.currentTarget.textContent || frameName;
+            onNameBlur(newName);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            e.stopPropagation(); // Prevent Enter from triggering parent handlers
+            frameNameRef.current?.blur();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            if (frameNameRef.current) {
+              frameNameRef.current.textContent = frameName;
+            }
+            frameNameRef.current?.blur();
+          }
+        }}
         className="whitespace-nowrap overflow-hidden text-ellipsis relative"
         style={{
           fontSize: `${fontSize}px`,
           lineHeight: `${16 / zoomLevel}px`,
-          color: isCreating ? "#ffffff" : "rgba(0, 0, 0, 0.7)",
+          color:
+            bgColor !== "transparent"
+              ? "rgba(255, 255, 255, 0.9)"
+              : "rgba(0, 0, 0, 0.7)",
           fontFamily: "Graphik, sans-serif",
-          fontWeight: isCreating ? 500 : 400,
+          fontWeight: bgColor !== "transparent" ? 500 : 400,
           zIndex: 1,
           minWidth: 0,
           flexShrink: 1,
+          outline: "none",
+          cursor: isEditingName ? "text" : "move",
         }}
       >
         {frameName}
-      </span>
+      </div>
     </motion.div>
   );
 }

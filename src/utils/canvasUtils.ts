@@ -374,3 +374,36 @@ export function getMetadataHeaderHeight(zoomLevel: number): number {
   return gap + fontSize;
 }
 
+/**
+ * Promote selected objects to the highest z-index
+ * Returns a new array of objects with updated z-indices
+ */
+export function promoteToHighestZIndex(
+  objects: CanvasObject[],
+  selectedIds: string[]
+): CanvasObject[] {
+  if (selectedIds.length === 0) {
+    return objects;
+  }
+
+  // Initialize zIndex for objects that don't have it
+  const objectsWithZIndex = objects.map((obj, index) => ({
+    ...obj,
+    zIndex: obj.zIndex ?? index,
+  }));
+
+  // Find the current highest z-index
+  const maxZIndex = Math.max(...objectsWithZIndex.map(obj => obj.zIndex ?? 0));
+
+  // Promote selected objects to be higher than the current max
+  return objectsWithZIndex.map(obj => {
+    if (selectedIds.includes(obj.id)) {
+      return {
+        ...obj,
+        zIndex: maxZIndex + 1 + selectedIds.indexOf(obj.id),
+      };
+    }
+    return obj;
+  });
+}
+

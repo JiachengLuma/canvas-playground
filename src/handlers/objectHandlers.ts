@@ -95,6 +95,22 @@ export const createObjectHandlers = (params: ObjectHandlersParams) => {
     updateObject(id, { content });
   };
 
+  const handleLabelBgColorChange = (id: string) => {
+    const obj = objects.find((o) => o.id === id);
+    const colors = ["none", "red", "green", "yellow"];
+    const currentIndex = colors.indexOf(obj?.labelBgColor || "none");
+    const nextColor = colors[(currentIndex + 1) % colors.length];
+    updateObject(id, { labelBgColor: nextColor as any });
+
+    // Keep toolbar visible after clicking label color
+    setActiveToolbarId(id);
+    handleHoverEnter();
+  };
+
+  const handleNameChange = (id: string, newName: string) => {
+    updateObject(id, { name: newName });
+  };
+
   const handleMultiSelectColorTagChange = () => {
     if (selectedIds.length === 0) return;
 
@@ -116,13 +132,37 @@ export const createObjectHandlers = (params: ObjectHandlersParams) => {
     }
   };
 
+  const handleMultiLabelBgColorChange = () => {
+    if (selectedIds.length === 0) return;
+
+    // Get the label background color of the first selected object
+    const firstObj = objects.find((o) => o.id === selectedIds[0]);
+    const colors = ["none", "red", "green", "yellow"];
+    const currentIndex = colors.indexOf(firstObj?.labelBgColor || "none");
+    const nextColor = colors[(currentIndex + 1) % colors.length];
+
+    // Apply the SAME next color to ALL selected objects
+    selectedIds.forEach((id) => {
+      updateObject(id, { labelBgColor: nextColor as any });
+    });
+
+    // Keep toolbar visible
+    if (selectedIds[0]) {
+      setActiveToolbarId(selectedIds[0]);
+      handleHoverEnter();
+    }
+  };
+
   return {
     handleDelete,
     handleDuplicate,
     handleRotate,
     handleColorTagChange,
     handleMultiSelectColorTagChange,
+    handleMultiLabelBgColorChange,
     handleContentUpdate,
+    handleLabelBgColorChange,
+    handleNameChange,
   };
 };
 

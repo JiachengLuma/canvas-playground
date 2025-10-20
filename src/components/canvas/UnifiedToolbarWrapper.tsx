@@ -43,6 +43,7 @@ interface UnifiedToolbarWrapperProps {
   onToolbarHoverLeave?: () => void;
   onZoomToFit?: (id: string) => void;
   onColorTagChange?: (id: string) => void;
+  onLabelBgColorChange?: (id: string) => void;
   onAIPrompt?: (id: string, prompt: string) => void;
   onConvertToVideo?: (id: string) => void;
   onRerun?: (id: string) => void;
@@ -53,6 +54,7 @@ interface UnifiedToolbarWrapperProps {
   onDownload?: (id: string) => void;
   // Multi-select specific
   onMultiColorTagChange?: () => void;
+  onMultiLabelBgColorChange?: () => void;
   onMultiAIPrompt?: (prompt: string) => void;
   onFrameSelection?: () => void;
   onFrameSelectionWithAutolayout?: () => void;
@@ -151,6 +153,7 @@ export function UnifiedToolbarWrapper({
   onToolbarHoverLeave,
   onZoomToFit,
   onColorTagChange,
+  onLabelBgColorChange,
   onAIPrompt,
   onConvertToVideo,
   onRerun,
@@ -160,6 +163,7 @@ export function UnifiedToolbarWrapper({
   onMore,
   onDownload,
   onMultiColorTagChange,
+  onMultiLabelBgColorChange,
   onMultiAIPrompt,
   onFrameSelection,
   onFrameSelectionWithAutolayout,
@@ -294,6 +298,7 @@ export function UnifiedToolbarWrapper({
   // Calculate dimensions and positions based on mode
   let objectTypes: string[];
   let colorTag: string | undefined;
+  let labelBgColor: string | undefined;
   let toolbarLeftScreen: number, toolbarTopScreen: number;
   let tabButtonLeftScreen: number, tabButtonTopScreen: number;
   let heightInScreenPx: number, widthInScreenPx: number;
@@ -307,6 +312,8 @@ export function UnifiedToolbarWrapper({
 
     objectTypes = selectedObjectTypes;
     colorTag = multiColorTag;
+    // For multi-select, labelBgColor is not applicable (we'll pass the callback though)
+    labelBgColor = undefined;
 
     // Use consistent gap with single objects (no metadata)
     const toolbarGap = getToolbarGap(zoomLevel);
@@ -345,6 +352,7 @@ export function UnifiedToolbarWrapper({
 
     objectTypes = [object.type];
     colorTag = object.colorTag || "none";
+    labelBgColor = object.labelBgColor || "none";
 
     // Check if metadata header should be shown using generalized size system
     const shouldShowMetadataHeader =
@@ -476,11 +484,19 @@ export function UnifiedToolbarWrapper({
                     : undefined
                 }
                 colorTag={colorTag as any}
-                onColorTagChange={
+                // onColorTagChange={
+                //   mode === "multi"
+                //     ? onMultiColorTagChange
+                //     : mode === "single" && object
+                //     ? () => onColorTagChange?.(object.id)
+                //     : undefined
+                // } // COMMENTED OUT: Now using labelBgColor
+                labelBgColor={labelBgColor as any}
+                onLabelBgColorChange={
                   mode === "multi"
-                    ? onMultiColorTagChange
+                    ? onMultiLabelBgColorChange
                     : mode === "single" && object
-                    ? () => onColorTagChange?.(object.id)
+                    ? () => onLabelBgColorChange?.(object.id)
                     : undefined
                 }
                 onAIPrompt={

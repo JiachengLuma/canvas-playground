@@ -35,7 +35,13 @@ export function useCanvasState(initialObjects: CanvasObject[] = []): CanvasState
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
 
   const addObject = (object: CanvasObject) => {
-    setObjects((prev) => [...prev, object]);
+    setObjects((prev) => {
+      // Find the current max z-index
+      const maxZIndex = Math.max(0, ...prev.map(obj => obj.zIndex ?? 0));
+      // Assign a higher z-index to the new object
+      const newObject = { ...object, zIndex: maxZIndex + 1 };
+      return [...prev, newObject];
+    });
   };
 
   const updateObject = (id: string, updates: Partial<CanvasObject>) => {

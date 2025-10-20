@@ -81,7 +81,10 @@ export interface CanvasLayerProps {
   onRotate: (id: string) => void;
   onColorTagChange: (id: string) => void;
   onMultiSelectColorTagChange: () => void; // Multi-select color tag change
+  onMultiLabelBgColorChange?: () => void; // Multi-select label bg color change
   onContentUpdate: (id: string, content: string) => void;
+  onLabelBgColorChange?: (id: string) => void;
+  onNameChange?: (id: string, newName: string) => void;
 
   // Toolbar handlers
   onSetActiveToolbar: (id: string | null) => void;
@@ -148,7 +151,10 @@ export function CanvasLayer({
   onRotate,
   onColorTagChange,
   onMultiSelectColorTagChange,
+  onMultiLabelBgColorChange,
   onContentUpdate,
+  onLabelBgColorChange,
+  onNameChange,
   onSetActiveToolbar,
   onActivateToolbarSystem,
   onToolbarHoverEnter,
@@ -311,6 +317,8 @@ export function CanvasLayer({
           onRotate={onRotate}
           onColorTagChange={onColorTagChange}
           onContentUpdate={onContentUpdate}
+          onLabelBgColorChange={onLabelBgColorChange}
+          onNameChange={onNameChange}
         />
 
         {/* Selection Bounds */}
@@ -372,6 +380,7 @@ export function CanvasLayer({
           isResizing={isResizing}
           multiColorTag={multiSelectColorTag}
           onMultiColorTagChange={onMultiSelectColorTagChange}
+          onMultiLabelBgColorChange={onMultiLabelBgColorChange}
           onMultiAIPrompt={(prompt) => console.log("Multi AI prompt:", prompt)}
           onFrameSelection={onFrameSelection}
           onFrameSelectionWithAutolayout={onFrameSelectionWithAutolayout}
@@ -439,6 +448,7 @@ export function CanvasLayer({
           onToolbarHoverLeave={onToolbarHoverLeave}
           onZoomToFit={onZoomToFit}
           onColorTagChange={onColorTagChange}
+          onLabelBgColorChange={onLabelBgColorChange}
           onAIPrompt={onAIPrompt}
           onConvertToVideo={onConvertToVideo}
           onRerun={onRerun}

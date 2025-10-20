@@ -35,6 +35,8 @@ interface ObjectsLayerProps {
   onRotate: (id: string) => void;
   onColorTagChange: (id: string) => void;
   onContentUpdate: (id: string, content: string) => void;
+  onLabelBgColorChange?: (id: string) => void;
+  onNameChange?: (id: string, newName: string) => void;
 }
 
 export function ObjectsLayer({
@@ -66,6 +68,8 @@ export function ObjectsLayer({
   onRotate,
   onColorTagChange,
   onContentUpdate,
+  onLabelBgColorChange,
+  onNameChange,
 }: ObjectsLayerProps) {
   // Filter out children of frames with autolayout enabled - they'll be rendered inside their parent
   const topLevelObjects = objects.filter((obj) => {
@@ -80,8 +84,14 @@ export function ObjectsLayer({
     return true;
   });
 
-  // Sort objects: frames first, then non-frames, then frame children
+  // Sort objects: first by z-index, then by type and parent relationship
   const sortedObjects = [...topLevelObjects].sort((a, b) => {
+    // Primary sort by z-index (if defined)
+    const aZIndex = a.zIndex ?? 0;
+    const bZIndex = b.zIndex ?? 0;
+    if (aZIndex !== bZIndex) return aZIndex - bZIndex;
+
+    // Secondary sort: frames first, then non-frames, then frame children
     // Frames should render first (lower z-index)
     if (a.type === "frame" && b.type !== "frame") return -1;
     if (a.type !== "frame" && b.type === "frame") return 1;
@@ -130,6 +140,8 @@ export function ObjectsLayer({
           onRotate={onRotate}
           onColorTagChange={onColorTagChange}
           onContentUpdate={onContentUpdate}
+          onLabelBgColorChange={onLabelBgColorChange}
+          onNameChange={onNameChange}
         />
       ))}
     </>
