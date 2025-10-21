@@ -68,7 +68,7 @@ export default function App() {
   >("flush");
   const [frameLabelPosition, setFrameLabelPosition] = useState<
     "background" | "drag-handle"
-  >("background");
+  >("drag-handle");
 
   // ===== Wheel Event Handling =====
   useWheel({

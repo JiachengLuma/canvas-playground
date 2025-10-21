@@ -118,7 +118,6 @@ export const INITIAL_OBJECTS: CanvasObject[] = [
     content:
       "https://cdn.midjourney.com/c06a44a1-490a-4473-b458-3ff04e60fbba/0_0.png",
     state: "idle",
-    labelBgColor: "green",
     metadata: { 
       createdAt: Date.now(), 
       updatedAt: Date.now(),
@@ -136,7 +135,6 @@ export const INITIAL_OBJECTS: CanvasObject[] = [
     content: getRandomVideoUrl(),
     duration: 5,
     state: "idle",
-    labelBgColor: "green",
     metadata: { 
       createdAt: Date.now(), 
       updatedAt: Date.now(),
@@ -155,7 +153,6 @@ export const INITIAL_OBJECTS: CanvasObject[] = [
     duration: 5,
     hasAudio: true,
     state: "idle",
-    labelBgColor: "green",
     metadata: { 
       createdAt: Date.now(), 
       updatedAt: Date.now(),
@@ -172,7 +169,6 @@ export const INITIAL_OBJECTS: CanvasObject[] = [
     height: 100,
     content: "",
     state: "idle",
-    labelBgColor: "green",
     metadata: { 
       createdAt: Date.now(), 
       updatedAt: Date.now(),
