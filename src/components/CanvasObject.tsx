@@ -1128,13 +1128,11 @@ export function CanvasObject({
 
       {/* Label color dot - shown at top-right when in "drag-handle" mode */}
       {/* Replaces top-right corner handle and functions as resize handle */}
+      {/* Always visible (even during drag) and allows resizing */}
       {(() => {
         const labelColor = getLabelBgColor(object.labelBgColor);
         const showLabelDot =
-          frameLabelPosition === "drag-handle" &&
-          labelColor &&
-          !(isDragging || (isDraggingAny && isSelected)) &&
-          onResizeStart;
+          frameLabelPosition === "drag-handle" && labelColor && onResizeStart;
 
         return showLabelDot ? (
           <motion.div
@@ -1216,14 +1214,15 @@ export function CanvasObject({
             zoomLevel
           );
 
-          // Colored labels: always show (except in micro view) - labeled objects should be visible
+          // Colored labels: only show when selected (except in micro view)
           // When in "drag-handle" mode, show text but hide colored background
           // Normal labels: only show in 'normal' state when selected (and not in multi-select)
           // Hide labels when THIS object is being dragged
           const showColoredBackground =
             frameLabelPosition === "background" && bgColor;
           const shouldShow = bgColor
-            ? sizeState !== "micro" &&
+            ? isSelected &&
+              sizeState !== "micro" &&
               !(isDragging || (isDraggingAny && isSelected)) // Hide when this object is dragged
             : !isDraggingAny &&
               !isPartOfMultiSelect &&
@@ -1497,11 +1496,15 @@ export function CanvasObject({
             zoomLevel
           );
 
-          // Show label always, except when zoomed out too far (micro state) or when this object is being dragged
-          // This ensures frame headings are visible by default
-          const shouldShowLabel =
-            sizeState !== "micro" &&
-            !(isDragging || (isDraggingAny && isSelected));
+          // Show label always (except in micro state or when being dragged)
+          // UNLESS it has a colored label, then only show when selected
+          // This ensures non-colored frame headings are visible by default
+          const shouldShowLabel = bgColor
+            ? isSelected &&
+              sizeState !== "micro" &&
+              !(isDragging || (isDraggingAny && isSelected))
+            : sizeState !== "micro" &&
+              !(isDragging || (isDraggingAny && isSelected));
 
           // Don't show label if conditions not met
           if (!shouldShowLabel) return null;
