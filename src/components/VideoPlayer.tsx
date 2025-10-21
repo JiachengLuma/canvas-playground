@@ -645,8 +645,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </motion.div>
         )}
 
-        {/* Duration pill with play/pause - only show when selected and at normal size and controls fit */}
-        {isSelected && showIconAndTime && controlsFitInVideo && (
+        {/* Duration pill with play/pause - only show when selected, hovered, and at normal size and controls fit */}
+        {isSelected && isHovered && showIconAndTime && controlsFitInVideo && (
           <motion.div
             className="absolute"
             style={{
@@ -724,53 +724,57 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </motion.div>
         )}
 
-        {/* Audio control button - only show when selected and has audio and controls fit */}
-        {isSelected && hasAudio && showIconAndTime && controlsFitInVideo && (
-          <motion.div
-            className="absolute pointer-events-auto"
-            style={{
-              right: `${pillInset}px`,
-              bottom: `${adjustedPillBottom}px`,
-            }}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-            }}
-            transition={{
-              duration: 0.2,
-              ease: "easeOut",
-            }}
-          >
-            <button
-              onClick={handleMuteToggle}
-              className="flex items-center justify-center text-white hover:opacity-80 transition-opacity"
+        {/* Audio control button - only show when selected, hovered, has audio and controls fit */}
+        {isSelected &&
+          isHovered &&
+          hasAudio &&
+          showIconAndTime &&
+          controlsFitInVideo && (
+            <motion.div
+              className="absolute pointer-events-auto"
               style={{
-                padding: `${pillPaddingY}px ${pillPaddingX}px`,
-                borderRadius: `${pillRadius}px`,
-                backgroundColor: "transparent",
-                border: "none",
-                cursor: "pointer",
+                right: `${pillInset}px`,
+                bottom: `${adjustedPillBottom}px`,
+              }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+              }}
+              transition={{
+                duration: 0.2,
+                ease: "easeOut",
               }}
             >
-              {isMuted ? (
-                <VolumeX
-                  style={{
-                    width: `${iconSize}px`,
-                    height: `${iconSize}px`,
-                  }}
-                />
-              ) : (
-                <Volume2
-                  style={{
-                    width: `${iconSize}px`,
-                    height: `${iconSize}px`,
-                  }}
-                />
-              )}
-            </button>
-          </motion.div>
-        )}
+              <button
+                onClick={handleMuteToggle}
+                className="flex items-center justify-center text-white hover:opacity-80 transition-opacity"
+                style={{
+                  padding: `${pillPaddingY}px ${pillPaddingX}px`,
+                  borderRadius: `${pillRadius}px`,
+                  backgroundColor: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {isMuted ? (
+                  <VolumeX
+                    style={{
+                      width: `${iconSize}px`,
+                      height: `${iconSize}px`,
+                    }}
+                  />
+                ) : (
+                  <Volume2
+                    style={{
+                      width: `${iconSize}px`,
+                      height: `${iconSize}px`,
+                    }}
+                  />
+                )}
+              </button>
+            </motion.div>
+          )}
 
         {/* Large seek area - bottom 40% of video, excluding control buttons */}
         {showProgressBar && (

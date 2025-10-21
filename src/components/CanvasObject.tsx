@@ -1133,7 +1133,7 @@ export function CanvasObject({
         const showLabelDot =
           frameLabelPosition === "drag-handle" &&
           labelColor &&
-          !(isDraggingAny && isSelected) &&
+          !(isDragging || (isDraggingAny && isSelected)) &&
           onResizeStart;
 
         return showLabelDot ? (
@@ -1204,8 +1204,7 @@ export function CanvasObject({
 
       {/* Metadata header - shown when selected (but not for frames or objects inside frames) */}
       {/* Metadata header - TYPE (left side) shown above object */}
-      {!isDraggingAny &&
-        object.type !== "frame" &&
+      {object.type !== "frame" &&
         object.state !== "generating" &&
         !object.parentId &&
         shouldShowMetadata(object.type) &&
@@ -1217,14 +1216,17 @@ export function CanvasObject({
             zoomLevel
           );
 
-          // Colored labels: only show when selected (not on idle/hover)
+          // Colored labels: always show (except in micro view) - labeled objects should be visible
           // When in "drag-handle" mode, show text but hide colored background
           // Normal labels: only show in 'normal' state when selected (and not in multi-select)
+          // Hide labels when THIS object is being dragged
           const showColoredBackground =
             frameLabelPosition === "background" && bgColor;
           const shouldShow = bgColor
-            ? isSelected && sizeState !== "micro" // Only show when selected
-            : !isPartOfMultiSelect &&
+            ? sizeState !== "micro" &&
+              !(isDragging || (isDraggingAny && isSelected)) // Hide when this object is dragged
+            : !isDraggingAny &&
+              !isPartOfMultiSelect &&
               isSelected &&
               shouldShowObjectMetadata(object.width, object.height, zoomLevel);
 
@@ -1495,9 +1497,11 @@ export function CanvasObject({
             zoomLevel
           );
 
-          // Show label always, except when zoomed out too far (micro state)
+          // Show label always, except when zoomed out too far (micro state) or when this object is being dragged
           // This ensures frame headings are visible by default
-          const shouldShowLabel = sizeState !== "micro";
+          const shouldShowLabel =
+            sizeState !== "micro" &&
+            !(isDragging || (isDraggingAny && isSelected));
 
           // Don't show label if conditions not met
           if (!shouldShowLabel) return null;

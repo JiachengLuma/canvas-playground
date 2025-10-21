@@ -177,14 +177,25 @@ Controls automatically hide when video is too small (< 40px min dimension).
 
 ## Toolbar System
 
-Context-aware toolbar with sophisticated animations and adaptive sizing.
+Context-aware toolbar with click-based activation and adaptive sizing.
+
+### Activation
+
+**Click-Based System**:
+
+- Click on object to show toolbar
+- Toolbar remains visible while object selected
+- Click elsewhere or press Escape to hide
+- Predictable and reliable visibility
+
+**Previous hover-based system removed** for better UX and performance.
 
 ### Toolbar Modes
 
 **Single Selection Toolbar**:
 
 - Object-specific actions based on type
-- Color tagging
+- Label background coloring
 - Delete, duplicate, reframe actions
 - Download options for media
 - Edit options for content
@@ -194,7 +205,7 @@ Context-aware toolbar with sophisticated animations and adaptive sizing.
 - Batch operations
 - Frame creation
 - Group delete
-- Group tagging
+- Batch label coloring
 - Alignment tools
 
 **Compact Mode** (< 30px screen size):
@@ -533,35 +544,123 @@ Complete undo/redo system for all canvas operations.
 - History cleared on page refresh
 - No persistence to storage (future enhancement)
 
+## Label System
+
+Visual organization system using colored background pills on object headings.
+
+### Colored Label Backgrounds
+
+**Colors Available**:
+
+- None: Transparent (default)
+- Red: #ef4444
+- Green: #22c55e
+- Yellow: #eab308
+
+**Features**:
+
+- Click toolbar button to cycle colors
+- Multi-select batch operations
+- Independent visibility from standard headers
+- Smooth scaling transitions
+
+### Inline Renaming
+
+**Double-Click to Edit**:
+
+- Double-click any label to rename
+- Text becomes editable inline
+- Press Enter to confirm, Escape to cancel
+- Keyboard shortcuts disabled during editing
+
+### Per-Object Scaling
+
+**Important Behavior**:
+
+Labels scale individually based on each object's screen size. Multiple objects at the same zoom level may have labels at different scales.
+
+**Scaling Rules**:
+
+- Micro (≤ 10px): Hidden
+- Tiny (10-30px): 0.5x → 1.0x smooth transition
+- Small (30-120px): 1.0x full scale
+- Normal (≥ 120px): 1.0x full scale
+
+**Example**: A large frame and small image at 50% zoom will have labels at different scales - this is expected behavior ensuring readability.
+
+### Visibility Rules
+
+**Colored Labels**:
+
+- Visible at tiny/small/normal scales
+- Visible even during multi-select
+- Independent of selection state
+
+**Uncolored Labels** (standard metadata):
+
+- Only visible when selected
+- Only visible at normal scale (≥ 120px)
+- Hidden during multi-select
+
+### Technical Details
+
+- GPU-accelerated scaling with CSS transforms
+- Smooth 0.15s transitions
+- Per-object scale calculation
+- 2px gap between label and object
+- Transform origin: left center
+
+See [LABEL_SYSTEM.md](LABEL_SYSTEM.md) for comprehensive documentation.
+
 ## Scale-Aware UI
 
 Sophisticated system for maintaining UI element visibility and sizing across zoom levels.
 
 ### Size Classification
 
-Objects classified by screen dimensions:
+Objects classified into 4 states by screen dimensions:
 
-- Tiny: < 30px minimum dimension
-- Small: 30px - 120px
-- Large: > 120px
+- Micro: ≤ 10px minimum dimension
+- Tiny: 10-30px minimum dimension
+- Small: 30-120px minimum dimension
+- Normal: ≥ 120px minimum dimension
 
 ### Adaptive Behaviors
 
 **Toolbar**:
 
-- Large (> 30px): Full toolbar with all buttons
-- Tiny (< 30px): Compact mode with ellipsis menu
+- Normal (≥ 120px): Full toolbar with all buttons
+- Small (30-120px): Full toolbar with all buttons
+- Tiny (10-30px): Compact mode with ellipsis menu
+- Micro (≤ 10px): Hidden
 
-**Object Header**:
+**Object Header** (standard metadata):
 
-- Large (> 120px): Full header with metadata
-- Small (< 120px): Header hidden, toolbar adjusts position
+- Normal (≥ 120px): Full header visible when selected
+- Small/Tiny/Micro: Hidden
+
+**Colored Labels**:
+
+- Normal (≥ 120px): Full scale (1.0x)
+- Small (30-120px): Full scale (1.0x)
+- Tiny (10-30px): Scaling (0.5x → 1.0x)
+- Micro (≤ 10px): Hidden
 
 **Video Controls**:
 
 - Large (> 40px): Full custom controls
 - Tiny (< 40px): Controls hidden
 - All sizes: Elements scale inversely with zoom
+
+**Corner Handles**:
+
+- Normal/Small (≥ 30px): All 4 handles
+- Tiny/Micro (< 30px): Single top-right handle
+
+**Drag Handle**:
+
+- Normal/Small (≥ 30px): Visible
+- Tiny/Micro (< 30px): Hidden
 
 ### Calculation Method
 

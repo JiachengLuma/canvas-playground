@@ -186,7 +186,6 @@ export const INITIAL_OBJECTS: CanvasObject[] = [
     content:
       "This is an AI-generated document with rich content. It can contain paragraphs, formatting, and more.",
     state: "idle",
-    labelBgColor: "green",
     metadata: { 
       createdAt: Date.now(), 
       updatedAt: Date.now(),

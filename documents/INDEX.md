@@ -8,7 +8,8 @@ Start here if you're new to the project:
 
 1. **[README.md](../README.md)** - Project overview, quick start, and feature summary
 2. **[FEATURES.md](FEATURES.md)** - Comprehensive feature documentation
-3. **[DOCUMENTATION_UPDATE_2025.md](DOCUMENTATION_UPDATE_2025.md)** - Recent documentation changes
+3. **[LATEST_UPDATES_2025.md](LATEST_UPDATES_2025.md)** - Latest changes and updates
+4. **[DOCUMENTATION_UPDATE_2025.md](DOCUMENTATION_UPDATE_2025.md)** - Previous documentation changes
 
 ## Core Documentation
 
@@ -30,13 +31,17 @@ Deep dives into specific features:
 
 - **[TOOLBAR_ANIMATION_STRATEGY.md](TOOLBAR_ANIMATION_STRATEGY.md)** - Animation implementation for toolbar transitions
 
+### Label System
+
+- **[LABEL_SYSTEM.md](LABEL_SYSTEM.md)** - Colored label system with per-object scaling
+
 ### Frame System
 
 - **[FRAME_FEATURE_SUMMARY.md](FRAME_FEATURE_SUMMARY.md)** - Frame creation, manipulation, and parent-child relationships
 
 ### UI System
 
-- **[UI_SIZE_CLASSIFICATION.md](UI_SIZE_CLASSIFICATION.md)** - Scale-aware UI classification system
+- **[UI_SIZE_CLASSIFICATION.md](UI_SIZE_CLASSIFICATION.md)** - Scale-aware UI classification system (4-state: micro/tiny/small/normal)
 
 ## Configuration
 
@@ -74,9 +79,10 @@ These documents track the development history and major refactoring:
 ### For New Developers
 
 1. README.md - Understand what the project does
-2. QUICK_REFERENCE.md - Get oriented quickly
-3. FEATURES.md - Learn all features
-4. ARCHITECTURE.md - Understand the structure
+2. LATEST_UPDATES_2025.md - Review latest changes
+3. QUICK_REFERENCE.md - Get oriented quickly
+4. FEATURES.md - Learn all features
+5. ARCHITECTURE.md - Understand the structure
 
 ### For Feature Development
 
@@ -94,8 +100,14 @@ These documents track the development history and major refactoring:
 
 **Toolbar**:
 
-1. TOOLBAR_ANIMATION_STRATEGY.md
-2. UI_SIZE_CLASSIFICATION.md
+1. LATEST_UPDATES_2025.md (toolbar changes)
+2. TOOLBAR_ANIMATION_STRATEGY.md
+3. UI_SIZE_CLASSIFICATION.md
+
+**Labels**:
+
+1. LABEL_SYSTEM.md (complete reference)
+2. LATEST_UPDATES_2025.md (implementation details)
 
 **Frames**:
 
