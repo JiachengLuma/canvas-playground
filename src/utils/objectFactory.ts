@@ -154,6 +154,7 @@ export function createArtifact(
     ...createBaseObject(type, x, y, 250, 200),
     state: "pre-placeholder",
     content: "",
+    labelBgColor: "green",
   };
 
   switch (type) {
@@ -211,6 +212,7 @@ export function createPlaceholder(
     ...createBaseObject(type, x, y, 250, 200),
     state: "generating",
     content: "",
+    labelBgColor: "green",
     metadata: {
       createdAt: Date.now(),
       updatedAt: Date.now(),
