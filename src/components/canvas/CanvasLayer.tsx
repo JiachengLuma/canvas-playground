@@ -59,6 +59,7 @@ export interface CanvasLayerProps {
 
   // Video settings
   videoPauseOnSelect?: boolean;
+  hoveredVideoId?: string | null; // For multi-video sync play feature
 
   // Selection settings
   selectionPaddingMode?: "flush" | "responsive";
@@ -95,6 +96,10 @@ export interface CanvasLayerProps {
   onActivateToolbarSystem: () => void;
   onToolbarHoverEnter: () => void;
   onToolbarHoverLeave: () => void;
+
+  // Object hover handlers (with object ID for video sync)
+  onObjectHoverEnter?: (id: string) => void;
+  onObjectHoverLeave?: (id: string) => void;
 
   // Toolbar action handlers
   onZoomToFit: (id: string) => void;
@@ -139,6 +144,7 @@ export function CanvasLayer({
   selectionColor,
   hoverColor,
   videoPauseOnSelect = false,
+  hoveredVideoId,
   selectionPaddingMode = "flush",
   frameLabelPosition = "background",
   onCanvasMouseDown,
@@ -165,6 +171,8 @@ export function CanvasLayer({
   onActivateToolbarSystem,
   onToolbarHoverEnter,
   onToolbarHoverLeave,
+  onObjectHoverEnter,
+  onObjectHoverLeave,
   onZoomToFit,
   onAIPrompt,
   onConvertToVideo,
@@ -308,12 +316,17 @@ export function CanvasLayer({
           selectionColor={selectionColor}
           hoverColor={hoverColor}
           videoPauseOnSelect={videoPauseOnSelect}
+          hoveredVideoId={hoveredVideoId}
           selectionPaddingMode={selectionPaddingMode}
           frameLabelPosition={frameLabelPosition}
           onSetActiveToolbar={onSetActiveToolbar}
           onActivateToolbarSystem={onActivateToolbarSystem}
-          onObjectHoverEnter={onToolbarHoverEnter}
-          onObjectHoverLeave={onToolbarHoverLeave}
+          onObjectHoverEnter={
+            onObjectHoverEnter || ((_id) => onToolbarHoverEnter())
+          }
+          onObjectHoverLeave={
+            onObjectHoverLeave || ((_id) => onToolbarHoverLeave())
+          }
           onSelect={onSelect}
           onResizeStart={onResizeStart}
           onDragStart={onDragStart}

@@ -46,6 +46,7 @@ interface CanvasObjectProps {
   selectionColor: string;
   hoverColor: string;
   videoPauseOnSelect?: boolean;
+  hoveredVideoId?: string | null; // For multi-video sync play feature
   selectionPaddingMode?: "flush" | "responsive";
   frameLabelPosition?: "background" | "drag-handle";
   onSetActiveToolbar: (id: string | null) => void;
@@ -87,6 +88,7 @@ export function CanvasObject({
   selectionColor,
   hoverColor,
   videoPauseOnSelect = false,
+  hoveredVideoId,
   selectionPaddingMode = "flush",
   frameLabelPosition = "background",
   onSetActiveToolbar,
@@ -340,11 +342,27 @@ export function CanvasObject({
         const duration = videoObj.duration || 0;
         const hasAudio = videoObj.hasAudio || false;
 
+        // Determine if this video should play due to multi-video sync
+        const shouldSyncPlay =
+          hoveredVideoId !== null &&
+          selectedIds &&
+          selectedIds.includes(object.id) &&
+          selectedIds.filter((id) => {
+            const obj = (objects || []).find((o) => o.id === id);
+            return obj?.type === "video";
+          }).length > 1;
+
+        // For multi-select, treat videos as "hovered" rather than "selected"
+        // The selection state is represented by the multi-select bounds
+        const effectiveIsSelected = isSelected && !isPartOfMultiSelect;
+        const effectiveIsHovered =
+          isHovered || (isPartOfMultiSelect && shouldSyncPlay);
+
         return (
           <VideoPlayer
             src={object.content}
-            isSelected={isSelected}
-            isHovered={isHovered}
+            isSelected={effectiveIsSelected}
+            isHovered={effectiveIsHovered}
             zoomLevel={zoomLevel}
             width={object.width}
             height={object.height}
@@ -352,6 +370,7 @@ export function CanvasObject({
             pauseOnSelect={videoPauseOnSelect}
             isDragging={isDraggingAny}
             hasAudio={hasAudio}
+            shouldSyncPlay={shouldSyncPlay}
           />
         );
       case "audio":
@@ -711,6 +730,8 @@ export function CanvasObject({
                   isMultiSelect={isMultiSelect}
                   selectionColor={selectionColor}
                   hoverColor={hoverColor}
+                  videoPauseOnSelect={videoPauseOnSelect}
+                  hoveredVideoId={hoveredVideoId}
                   onSetActiveToolbar={onSetActiveToolbar}
                   onActivateToolbarSystem={onActivateToolbarSystem}
                   onObjectHoverEnter={onObjectHoverEnter}

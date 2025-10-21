@@ -14,6 +14,7 @@ interface VideoPlayerProps {
   pauseOnSelect?: boolean;
   isDragging?: boolean;
   hasAudio?: boolean; // Whether this video has audio track
+  shouldSyncPlay?: boolean; // For multi-video sync play feature
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -27,6 +28,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   pauseOnSelect = false,
   isDragging = false,
   hasAudio = false,
+  shouldSyncPlay = false,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
@@ -226,6 +228,27 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       shouldBeMuted
     );
   }, [isSelected, hasAudio, isMuted]);
+
+  // Multi-video sync play feature - play all selected videos when hovering any one
+  const wasSyncPlaying = useRef(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (shouldSyncPlay) {
+      console.log("[VideoPlayer] Multi-video sync play activated!");
+      video.play().catch(() => {
+        // Ignore play errors
+      });
+      wasSyncPlaying.current = true;
+    } else if (wasSyncPlaying.current && !shouldSyncPlay) {
+      // Just stopped sync playing - pause immediately
+      console.log("[VideoPlayer] Multi-video sync play ended - pausing");
+      video.pause();
+      wasSyncPlaying.current = false;
+    }
+  }, [shouldSyncPlay]);
 
   // Format duration
   const formatTime = (seconds: number, includeUnit = true) => {

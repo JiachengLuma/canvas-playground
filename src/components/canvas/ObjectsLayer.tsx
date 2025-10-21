@@ -20,12 +20,13 @@ interface ObjectsLayerProps {
   selectionColor: string;
   hoverColor: string;
   videoPauseOnSelect?: boolean;
+  hoveredVideoId?: string | null;
   selectionPaddingMode?: "flush" | "responsive";
   frameLabelPosition?: "background" | "drag-handle";
   onSetActiveToolbar: (id: string | null) => void;
   onActivateToolbarSystem: () => void;
-  onObjectHoverEnter: () => void;
-  onObjectHoverLeave: () => void;
+  onObjectHoverEnter: (id: string) => void;
+  onObjectHoverLeave: (id: string) => void;
   onSelect: (id: string, multi: boolean) => void;
   onResizeStart: (corner: string, e: React.MouseEvent) => void;
   onDragStart: (id: string, optionKey: boolean) => void;
@@ -55,6 +56,7 @@ export function ObjectsLayer({
   selectionColor,
   hoverColor,
   videoPauseOnSelect = false,
+  hoveredVideoId,
   selectionPaddingMode = "flush",
   frameLabelPosition = "background",
   onSetActiveToolbar,
@@ -129,6 +131,7 @@ export function ObjectsLayer({
           selectionColor={selectionColor}
           hoverColor={hoverColor}
           videoPauseOnSelect={videoPauseOnSelect}
+          hoveredVideoId={hoveredVideoId}
           selectionPaddingMode={selectionPaddingMode}
           frameLabelPosition={frameLabelPosition}
           onSetActiveToolbar={onSetActiveToolbar}

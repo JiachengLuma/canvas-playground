@@ -70,6 +70,10 @@ export default function App() {
     "background" | "drag-handle"
   >("drag-handle");
 
+  // ===== Multi-Video Sync Play Feature =====
+  // Track when hovering over a video while multiple videos are selected
+  const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
+
   // ===== Wheel Event Handling =====
   useWheel({
     canvasRef,
@@ -244,6 +248,71 @@ export default function App() {
 
   // ===== Additional Event Handlers =====
 
+  // Wrapper for object hover enter to detect multi-video sync play scenario
+  const handleObjectHoverEnter = (id: string) => {
+    toolbar.handleHoverEnter();
+
+    // Check if we're hovering a video in a multi-video selection
+    const hoveredObj = canvas.objects.find((obj) => obj.id === id);
+    if (!hoveredObj || hoveredObj.type !== "video") {
+      setHoveredVideoId(null);
+      return;
+    }
+
+    // Check if this video is selected
+    const isHoveredVideoSelected = selection.selectedIds.includes(id);
+    if (!isHoveredVideoSelected) {
+      setHoveredVideoId(null);
+      return;
+    }
+
+    // Count how many selected objects are videos
+    const selectedVideos = canvas.objects.filter(
+      (obj) => selection.selectedIds.includes(obj.id) && obj.type === "video"
+    );
+
+    // If multiple videos are selected, activate sync play
+    if (selectedVideos.length > 1) {
+      setHoveredVideoId(id);
+    } else {
+      setHoveredVideoId(null);
+    }
+  };
+
+  // Wrapper for object hover leave
+  const handleObjectHoverLeave = (id: string) => {
+    // Clear the hovered video state when leaving any video
+    const obj = canvas.objects.find((o) => o.id === id);
+    if (obj?.type === "video") {
+      setHoveredVideoId(null);
+    }
+
+    // Only hide toolbar if object is NOT selected
+    const isSelected = selection.selectedIds.includes(id);
+    if (!isSelected) {
+      toolbar.handleHoverLeave();
+    }
+  };
+
+  // Clear hovered video state when mouse leaves to empty canvas
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (hoveredVideoId === null) return;
+
+      // Check if mouse is over any canvas object
+      const target = e.target as HTMLElement;
+      const isOverObject = target.closest("[data-canvas-object]");
+
+      // If not over any object, clear the hovered video state
+      if (!isOverObject) {
+        setHoveredVideoId(null);
+      }
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    return () => document.removeEventListener("mousemove", handleMouseMove);
+  }, [hoveredVideoId]);
+
   // Wrapper for toolbar hover leave that checks if we should actually hide
   const handleToolbarHoverLeave = () => {
     // Don't hide toolbar if ANY object is selected
@@ -385,6 +454,7 @@ export default function App() {
         activeToolbarId={toolbar.activeToolbarId}
         toolbarSystemActivated={toolbar.toolbarSystemActivated}
         videoPauseOnSelect={videoPauseOnSelect}
+        hoveredVideoId={hoveredVideoId}
         selectionPaddingMode={selectionPaddingMode}
         frameLabelPosition={frameLabelPosition}
         onCanvasMouseDown={mouseHandlers.handleCanvasMouseDown}
@@ -427,6 +497,8 @@ export default function App() {
         onActivateToolbarSystem={() => toolbar.setToolbarSystemActivated(true)}
         onToolbarHoverEnter={toolbar.handleHoverEnter}
         onToolbarHoverLeave={handleToolbarHoverLeave}
+        onObjectHoverEnter={handleObjectHoverEnter}
+        onObjectHoverLeave={handleObjectHoverLeave}
         onZoomToFit={canvasHandlers.handleZoomToFitToolbar}
         onAIPrompt={artifactHandlers.handleAIPrompt}
         onConvertToVideo={artifactHandlers.handleConvertToVideo}
