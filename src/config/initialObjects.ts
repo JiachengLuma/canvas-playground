@@ -218,16 +218,16 @@ export const INITIAL_OBJECTS: CanvasObject[] = [
     name: "Image Grid",
     x: 100,
     y: 800,
-    width: 1312, // Width for 5 items: (250 * 5) + (10 * 4) + (10 * 2) + 2 (border) = 1312
-    height: 432, // Height for 2 rows: (200 * 2) + (10 * 1) + (10 * 2) + 2 (border) = 432
+    width: 1372, // Width for 5 items: (250 * 5) + (20 * 4) + (20 * 2) + 2 (border) = 1372
+    height: 482, // Height for 2 rows: (200 * 2) + (20 * 1) + (20 * 2) + 2 (border) = 482
     createdBy: "human",
     autoLayout: true,
     layout: "grid",
-    padding: 10,
-    gap: 10,
+    padding: 20,
+    gap: 20,
     children: ["grid-img-1", "grid-img-2", "grid-img-3", "grid-img-4", "grid-img-5", "grid-img-6", "grid-img-7", "grid-img-8"],
     backgroundColor: "#f0f0f0",
-    borderRadius: 10,
+    borderRadius: 15,
     state: "idle",
     metadata: { 
       createdAt: Date.now(), 

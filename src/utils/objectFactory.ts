@@ -107,7 +107,7 @@ export function createSticky(x: number, y: number): StickyObject {
     ...createBaseObject("sticky", x, y, 250, 180),
     type: "sticky",
     name: "Sticky Note",
-    content: "Can we try a bit more motion blur here...Something like the Wong Kai wei film",
+    content: "Note content here...",
     noteColor,
     noteTitle: "Note",
     noteAuthor: "@User",
@@ -302,7 +302,7 @@ export function completePlaceholder(
 
   const completed = {
     ...object,
-    state: "idle",
+    state: "idle" as const,
     content,
     metadata: {
       ...object.metadata,
@@ -319,7 +319,7 @@ export function completePlaceholder(
     } as VideoObject;
   }
 
-  return completed;
+  return completed as ImageObject | VideoObject | AudioObject | DocumentObject;
 }
 
 /**
@@ -365,11 +365,11 @@ export function createFrame(
     createdBy: "human",
     autoLayout: false,
     layout: "hstack",
-    padding: 10,
-    gap: 10,
+    padding: 20,
+    gap: 20,
     children,
     backgroundColor: "#f6f6f6",
-    borderRadius: 10,
+    borderRadius: 15,
   } as FrameObject;
 }
 

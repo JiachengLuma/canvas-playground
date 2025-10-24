@@ -334,8 +334,8 @@ export const createFrameHandlers = (params: FrameHandlersParams) => {
           autoLayout: !wasAutolayout,
           // When turning ON autolayout, default to grid layout if not already set
           layout: !wasAutolayout && layout === "hstack" ? "grid" : layout,
-          padding: 10,
-          gap: 10,
+          padding: 20,
+          gap: 20,
           // Always update frame size when toggling autolayout
           ...newFrameSize,
         };
@@ -427,8 +427,8 @@ export const createFrameHandlers = (params: FrameHandlersParams) => {
       ...newFrame,
       autoLayout: true,
       layout: "grid" as const,
-      padding: 10,
-      gap: 10,
+      padding: 20,
+      gap: 20,
       gridColumns: 5,
     };
 

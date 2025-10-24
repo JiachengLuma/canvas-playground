@@ -47,6 +47,8 @@ interface CanvasObjectProps {
   hoverColor: string;
   videoPauseOnSelect?: boolean;
   hoveredVideoId?: string | null; // For multi-video sync play feature
+  videoControlsLayout?: "unified-pill" | "split-top-bottom";
+  showPlayIconOnHover?: boolean;
   selectionPaddingMode?: "flush" | "responsive";
   frameLabelPosition?: "background" | "drag-handle";
   onSetActiveToolbar: (id: string | null) => void;
@@ -89,6 +91,8 @@ export function CanvasObject({
   hoverColor,
   videoPauseOnSelect = false,
   hoveredVideoId,
+  videoControlsLayout = "unified-pill",
+  showPlayIconOnHover = true,
   selectionPaddingMode = "flush",
   frameLabelPosition = "background",
   onSetActiveToolbar,
@@ -270,11 +274,9 @@ export function CanvasObject({
 
     // Video pause is now handled in VideoPlayer component
 
-    // Only hide toolbar if object is NOT selected
-    // Selected objects should keep their toolbar visible
-    if (!isSelected) {
-      onObjectHoverLeave(object.id); // Notify parent that we left an object
-    }
+    // Always notify parent when leaving an object
+    // Parent will decide if toolbar should be hidden based on selection state
+    onObjectHoverLeave(object.id);
   };
 
   // Clear timeout on unmount
@@ -356,7 +358,7 @@ export function CanvasObject({
         // The selection state is represented by the multi-select bounds
         const effectiveIsSelected = isSelected && !isPartOfMultiSelect;
         const effectiveIsHovered =
-          isHovered || (isPartOfMultiSelect && shouldSyncPlay);
+          isHovered || (isPartOfMultiSelect && shouldSyncPlay) || false;
 
         return (
           <VideoPlayer
@@ -371,6 +373,8 @@ export function CanvasObject({
             isDragging={isDraggingAny}
             hasAudio={hasAudio}
             shouldSyncPlay={shouldSyncPlay}
+            controlsLayout={videoControlsLayout}
+            showPlayIconOnHover={showPlayIconOnHover}
           />
         );
       case "audio":
@@ -619,8 +623,8 @@ export function CanvasObject({
         const frameObj = object as any;
         const frameBorderWidth = viewportBorderWidth; // Match selection border width
         const autoLayout = frameObj.autoLayout || false;
-        const padding = frameObj.padding || 10;
-        const gap = frameObj.gap || 10;
+        const padding = frameObj.padding || 20;
+        const gap = frameObj.gap || 20;
         const layout = frameObj.layout || "hstack";
 
         // Get children if autolayout is enabled
@@ -654,7 +658,7 @@ export function CanvasObject({
                 frameObj.backgroundColor === "transparent"
                   ? "none"
                   : "1px solid rgba(0, 0, 0, 0.1)",
-              borderRadius: `${frameObj.borderRadius || 10}px`,
+              borderRadius: `${frameObj.borderRadius || 15}px`,
               boxSizing: "border-box",
               // During ANY resize operation, disable pointer events on ALL autolayout frame content
               ...(isResizing && {
@@ -775,7 +779,15 @@ export function CanvasObject({
   const viewportHandleSize = 12 / zoomLevel; // Slightly larger handles for better UX
   const viewportHandleBorderWidth = 2 / zoomLevel; // Will appear as 2px on screen after transform
   const viewportColorTagSize = 16 / zoomLevel;
-  const viewportBorderRadius = 5 / zoomLevel;
+  const viewportBorderRadius = 5 / zoomLevel; // Selection border radius
+  // Hover border radius matches frame border radius (15px) for frames, 5px for other objects
+  // Clamp hover border radius to prevent excessive rounding at small zoom levels
+  const viewportHoverBorderRadius =
+    object.type === "frame"
+      ? Math.min(((object as any).borderRadius || 15) / zoomLevel, 30)
+      : Math.min(5 / zoomLevel, 15);
+  // Clamp hover border width to prevent excessive thickness at small zoom levels
+  const viewportHoverBorderWidth = Math.min(2 / zoomLevel, 6);
   // Dynamic selection gap based on object size: 2px (normal), 1px (small/tiny), 0.5px (micro)
   const selectionGapInScreenPx = getSelectionGap(
     object.width,
@@ -1117,9 +1129,9 @@ export function CanvasObject({
               right: 0,
               bottom: 0,
               // Use outline instead of border so it renders outside the box
-              outline: `${viewportBorderWidth}px solid ${hoverColor}`,
+              outline: `${viewportHoverBorderWidth}px solid ${hoverColor}`,
               outlineOffset: 0,
-              borderRadius: viewportBorderRadius,
+              borderRadius: viewportHoverBorderRadius,
               zIndex: 10, // Above content to be visible
             }}
           />
@@ -1225,7 +1237,6 @@ export function CanvasObject({
       {/* Metadata header - TYPE (left side) shown above object */}
       {object.type !== "frame" &&
         object.state !== "generating" &&
-        !object.parentId &&
         shouldShowMetadata(object.type) &&
         (() => {
           const bgColor = getLabelBgColor(object.labelBgColor);
@@ -1287,7 +1298,7 @@ export function CanvasObject({
                   : `${4 / zoomLevel}px`,
                 paddingRight: effectiveBgColor ? `${8 / zoomLevel}px` : 0,
                 backgroundColor: effectiveBgColor || "transparent",
-                borderRadius: effectiveBgColor ? `${6 / zoomLevel}px` : 0,
+                borderRadius: effectiveBgColor ? `${999 / zoomLevel}px` : 0, // Full pill shape
                 height: effectiveBgColor ? `${20 / zoomLevel}px` : "auto",
                 display: "flex",
                 alignItems: "center",
@@ -1381,7 +1392,6 @@ export function CanvasObject({
         !isDraggingAny &&
         object.type !== "frame" &&
         object.state !== "generating" &&
-        !object.parentId &&
         zoomLevel > 0.3 &&
         shouldShowMetadata(object.type) &&
         shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
@@ -1429,6 +1439,7 @@ export function CanvasObject({
         )}
 
       {/* Generating state header - TYPE (left side) shown above object */}
+      {/* Hide for objects inside agent frames (frame already shows generation status) */}
       {object.state === "generating" &&
         object.type !== "frame" &&
         !object.parentId &&
@@ -1467,6 +1478,7 @@ export function CanvasObject({
         )}
 
       {/* Generating state header - CREATOR (right side) also shown above object */}
+      {/* Hide for objects inside agent frames (frame already shows generation status) */}
       {object.state === "generating" &&
         object.type !== "frame" &&
         !object.parentId &&
@@ -1519,9 +1531,10 @@ export function CanvasObject({
 
           // Show label always (except in micro state or when being dragged)
           // UNLESS it has a colored label, then only show when selected
+          // EXCEPTION: Agent frames during creation should always show (black pill with orb)
           // This ensures non-colored frame headings are visible by default
           const shouldShowLabel = bgColor
-            ? isSelected &&
+            ? (isSelected || (isAgentFrame && isAgentCreating)) &&
               sizeState !== "micro" &&
               !(isDragging || (isDraggingAny && isSelected))
             : sizeState !== "micro" &&
@@ -1582,7 +1595,7 @@ export function CanvasObject({
                 left: effectiveBgColor ? 0 : 4 / zoomLevel,
                 height: effectiveBgColor ? 20 / zoomLevel : "auto",
                 backgroundColor: effectiveBgColor || "transparent",
-                borderRadius: effectiveBgColor ? `${6 / zoomLevel}px` : 0,
+                borderRadius: effectiveBgColor ? `${999 / zoomLevel}px` : 0, // Full pill shape
                 paddingLeft: effectiveBgColor ? 8 / zoomLevel : 0,
                 paddingRight: effectiveBgColor ? 8 / zoomLevel : 0,
                 gap: effectiveBgColor ? `${4 / zoomLevel}px` : 0,

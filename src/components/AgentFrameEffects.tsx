@@ -62,8 +62,10 @@ export function AgentFrameHeader({
   const rawBgColor = getLabelBgColor(labelBgColor);
 
   // When in "drag-handle" mode, hide the colored background but keep the text
+  // EXCEPTION: Always show black background when creating (agent creation state)
   const showColoredBackground =
-    frameLabelPosition === "background" && rawBgColor !== "transparent";
+    isCreating ||
+    (frameLabelPosition === "background" && rawBgColor !== "transparent");
 
   // Use transparent styling when color is moved to dot
   const bgColor = showColoredBackground ? rawBgColor : "transparent";
@@ -76,7 +78,7 @@ export function AgentFrameHeader({
         left: bgColor !== "transparent" ? 0 : 4 / zoomLevel,
         height: headerHeight,
         backgroundColor: bgColor,
-        borderRadius: bgColor !== "transparent" ? `${6 / zoomLevel}px` : 0,
+        borderRadius: bgColor !== "transparent" ? `${999 / zoomLevel}px` : 0, // Full pill shape
         paddingLeft:
           bgColor !== "transparent" ? `${8 / zoomLevel}px` : paddingX,
         paddingRight:

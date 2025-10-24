@@ -446,3 +446,5 @@ const handleKeyDown = (e: KeyboardEvent) => {
 - [ ] Empty name is rejected
 - [ ] Very long names are truncated with ellipsis
 - [ ] Special characters in names display correctly
+
+

@@ -213,8 +213,8 @@ export const createArtifactHandlers = (params: ArtifactHandlersParams) => {
       backgroundColor: 'transparent', // Start transparent, will show when content arrives
       isAgentCreating: true,
       agentCreationStep: 0,
-      padding: 10,
-      gap: 10,
+      padding: 20,
+      gap: 20,
     };
     
     addObject(agentFrame);
