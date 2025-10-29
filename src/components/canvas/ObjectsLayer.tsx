@@ -21,6 +21,8 @@ interface ObjectsLayerProps {
   hoverColor: string;
   videoPauseOnSelect?: boolean;
   hoveredVideoId?: string | null;
+  videoControlsLayout?: "unified-pill" | "split-top-bottom";
+  showPlayIconOnHover?: boolean;
   selectionPaddingMode?: "flush" | "responsive";
   frameLabelPosition?: "background" | "drag-handle";
   onSetActiveToolbar: (id: string | null) => void;
@@ -57,6 +59,8 @@ export function ObjectsLayer({
   hoverColor,
   videoPauseOnSelect = false,
   hoveredVideoId,
+  videoControlsLayout = "unified-pill",
+  showPlayIconOnHover = true,
   selectionPaddingMode = "flush",
   frameLabelPosition = "background",
   onSetActiveToolbar,
@@ -132,6 +136,8 @@ export function ObjectsLayer({
           hoverColor={hoverColor}
           videoPauseOnSelect={videoPauseOnSelect}
           hoveredVideoId={hoveredVideoId}
+          videoControlsLayout={videoControlsLayout}
+          showPlayIconOnHover={showPlayIconOnHover}
           selectionPaddingMode={selectionPaddingMode}
           frameLabelPosition={frameLabelPosition}
           onSetActiveToolbar={onSetActiveToolbar}

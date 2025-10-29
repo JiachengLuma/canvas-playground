@@ -60,6 +60,8 @@ export interface CanvasLayerProps {
   // Video settings
   videoPauseOnSelect?: boolean;
   hoveredVideoId?: string | null; // For multi-video sync play feature
+  videoControlsLayout?: "unified-pill" | "split-top-bottom";
+  showPlayIconOnHover?: boolean;
 
   // Selection settings
   selectionPaddingMode?: "flush" | "responsive";
@@ -145,6 +147,8 @@ export function CanvasLayer({
   hoverColor,
   videoPauseOnSelect = false,
   hoveredVideoId,
+  videoControlsLayout = "unified-pill",
+  showPlayIconOnHover = true,
   selectionPaddingMode = "flush",
   frameLabelPosition = "background",
   onCanvasMouseDown,
@@ -317,6 +321,8 @@ export function CanvasLayer({
           hoverColor={hoverColor}
           videoPauseOnSelect={videoPauseOnSelect}
           hoveredVideoId={hoveredVideoId}
+          videoControlsLayout={videoControlsLayout}
+          showPlayIconOnHover={showPlayIconOnHover}
           selectionPaddingMode={selectionPaddingMode}
           frameLabelPosition={frameLabelPosition}
           onSetActiveToolbar={onSetActiveToolbar}

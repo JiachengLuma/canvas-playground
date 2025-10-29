@@ -29,6 +29,10 @@ interface HeaderToolbarProps {
   onToggleSelectionPadding?: () => void;
   frameLabelPosition?: "background" | "drag-handle";
   onToggleFrameLabelPosition?: () => void;
+  videoControlsLayout?: "unified-pill" | "split-top-bottom";
+  onToggleVideoControlsLayout?: () => void;
+  showPlayIconOnHover?: boolean;
+  onToggleShowPlayIconOnHover?: () => void;
 }
 
 export function HeaderToolbar({
@@ -46,6 +50,10 @@ export function HeaderToolbar({
   onToggleSelectionPadding,
   frameLabelPosition = "background",
   onToggleFrameLabelPosition,
+  videoControlsLayout = "unified-pill",
+  onToggleVideoControlsLayout,
+  showPlayIconOnHover = true,
+  onToggleShowPlayIconOnHover,
 }: HeaderToolbarProps) {
   return (
     <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm border-b">
@@ -146,7 +154,8 @@ export function HeaderToolbar({
         {(onToggleVideoPauseOnSelect ||
           onToggleSelectionPadding ||
           onToggleColorTheme ||
-          onToggleFrameLabelPosition) && (
+          onToggleFrameLabelPosition ||
+          onToggleVideoControlsLayout) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
@@ -236,6 +245,54 @@ export function HeaderToolbar({
                     <div className="text-xs text-muted-foreground mt-1">
                       Toggle between colored background plate (left) or colored
                       circle dot (top-right corner)
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              )}
+              {onToggleVideoControlsLayout && (
+                <DropdownMenuItem
+                  onSelect={onToggleVideoControlsLayout}
+                  className="flex items-start gap-3 py-3"
+                >
+                  <Play className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium flex items-center gap-2">
+                      Video Controls Layout
+                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                        {videoControlsLayout === "unified-pill"
+                          ? "Unified Pill"
+                          : "Split Top/Bottom"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Unified: All controls in one pill above timeline. Split:
+                      Time at top, controls at top-right, timeline at bottom
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              )}
+
+              {/* Toggle Show Play Icon on Hover */}
+              {onToggleShowPlayIconOnHover && (
+                <DropdownMenuItem onClick={onToggleShowPlayIconOnHover}>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-medium">
+                        Show Play Icon on Hover
+                      </span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded ${
+                          showPlayIconOnHover
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {showPlayIconOnHover ? "ON" : "OFF"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      When OFF, shows only time on hover (e.g., "5s"). Play icon
+                      only appears when selected.
                     </div>
                   </div>
                 </DropdownMenuItem>

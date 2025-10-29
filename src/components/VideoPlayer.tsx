@@ -1,6 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX, AudioLines } from "lucide-react";
-import { motion } from "framer-motion";
+import {
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  AudioLines,
+  Maximize,
+} from "lucide-react";
 import { getUISizeState } from "../utils/canvasUtils";
 
 interface VideoPlayerProps {
@@ -15,8 +21,21 @@ interface VideoPlayerProps {
   isDragging?: boolean;
   hasAudio?: boolean; // Whether this video has audio track
   shouldSyncPlay?: boolean; // For multi-video sync play feature
+  controlsLayout?: "unified-pill" | "split-top-bottom"; // DEBUG: Layout option
+  showPlayIconOnHover?: boolean; // DEBUG: Show play icon in default/hover states
 }
 
+/**
+ * DEBUG: Two layout options available via controlsLayout prop:
+ *
+ * "unified-pill" (default): All controls in one pill above timeline
+ * - Selected: [Play/Pause] [Time] [Mute] [Fullscreen] in single pill above bottom
+ * - Timeline never conflicts with controls
+ *
+ * "split-top-bottom": Controls split between top and bottom
+ * - Top: [Time] ... [Mute] [Fullscreen]
+ * - Bottom: Timeline only (no control conflicts)
+ */
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   src,
   isSelected,
@@ -29,6 +48,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   isDragging = false,
   hasAudio = false,
   shouldSyncPlay = false,
+  controlsLayout = "unified-pill", // DEBUG: Change to "split-top-bottom" to test alternate layout
+  showPlayIconOnHover = true, // DEBUG: Toggle play icon in default/hover states
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
@@ -36,18 +57,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoDuration, setVideoDuration] = useState(duration);
-  const [isProgressBarHovered, setIsProgressBarHovered] = useState(false);
-  const [scrubPreviewTime, setScrubPreviewTime] = useState<number | null>(null);
   const [isMuted, setIsMuted] = useState(false); // Start unmuted (will auto-unmute on select if hasAudio)
   const animationFrameRef = useRef<number | null>(null);
   const wasPlayingBeforeSelection = useRef(false);
   const isSelecting = useRef(false);
   const justSelected = useRef(false);
   const hoverSeekTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [hoverSeekPosition, setHoverSeekPosition] = useState<number | null>(
-    null
-  );
   const [isHoveringSeekArea, setIsHoveringSeekArea] = useState(false);
+  const [isDraggingSeekBar, setIsDraggingSeekBar] = useState(false);
+  const [hoverTimelinePosition, setHoverTimelinePosition] = useState<
+    number | null
+  >(null);
+  const [isHoveringTimelineArea, setIsHoveringTimelineArea] = useState(false);
 
   // Smooth progress bar animation using requestAnimationFrame
   useEffect(() => {
@@ -255,10 +276,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     if (includeUnit) {
-      // For non-hover state, show compact format
-      if (mins > 0) {
-        return `${mins}m ${secs}s`;
+      // For non-hover state, show compact format for short videos, time format for longer ones
+      if (seconds >= 60) {
+        // Videos >= 1 minute: show 0:00 format
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
       }
+      // Videos < 1 minute: show simple "5s" format
       return `${secs}s`;
     } else {
       // For hover state, always show 0:00 format
@@ -268,22 +291,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const durationText = formatTime(videoDuration);
 
-  // Use scrub preview time if hovering over progress bar, otherwise use actual current time
-  const displayTime =
-    scrubPreviewTime !== null ? scrubPreviewTime : currentTime;
-  const currentTimeFormatted = formatTime(Math.floor(displayTime), false);
+  // Format current time in simple seconds format for hover (e.g., "1s", "2s", "3s")
+  const currentTimeSimple = formatTime(Math.floor(currentTime), true);
+
+  // Format times for display (detailed format for selected)
+  const currentTimeFormatted = formatTime(Math.floor(currentTime), false);
   const totalTimeFormatted = formatTime(videoDuration, false);
-  const timeDisplay =
-    (isHovered || isSelected) && videoDuration > 0
-      ? `${currentTimeFormatted} / ${totalTimeFormatted}`
-      : durationText;
+  const detailedTimeDisplay = `${currentTimeFormatted} / ${totalTimeFormatted}`;
+
+  // Choose display format based on state
+  let timeDisplay = durationText; // Default
+  if (isSelected && videoDuration > 0) {
+    timeDisplay = detailedTimeDisplay; // Selected: show "0:00 / 0:05"
+  } else if (isHovered && videoDuration > 0) {
+    timeDisplay = currentTimeSimple; // Hover: show "1s", "2s", "3s"
+  }
+
   const progress = videoDuration > 0 ? (currentTime / videoDuration) * 100 : 0;
-  const previewProgress =
-    scrubPreviewTime !== null && videoDuration > 0
-      ? (scrubPreviewTime / videoDuration) * 100
-      : hoverSeekPosition !== null && videoDuration > 0
-      ? (hoverSeekPosition / videoDuration) * 100
-      : progress;
 
   // Calculate scale-aware sizing
   // Base sizes are for normal scale
@@ -296,62 +320,68 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const showProgressBar = sizeState !== "micro"; // Hide everything at micro
   const showIconAndTime = sizeState !== "tiny" && sizeState !== "micro"; // Show icon and time at small and normal size
 
-  // Scale-aware sizing - made bigger at normal scale
+  // Clever pill scaling: Scale down proportionally based on video's screen size
+  // Calculate the smaller dimension on screen (to handle both portrait and landscape)
+  const smallerScreenDimension = Math.min(
+    width * zoomLevel,
+    height * zoomLevel
+  );
+
+  // Scale factor based on screen size:
+  // - At 200px+: scale = 1.0 (full size)
+  // - At 100px: scale = 0.75 (25% smaller)
+  // - At 50px: scale = 0.5 (50% smaller)
+  const pillScaleFactor = Math.max(
+    0.5,
+    Math.min(1.0, 0.5 + (smallerScreenDimension - 50) / 300)
+  );
+
+  // Scale-aware sizing - made bigger at normal scale, with additional proportional scaling
   // Pill inset decreases at smaller scales for better space utilization
   const basePillInset =
     sizeState === "normal" ? 10 : sizeState === "small" ? 6 : 3;
   const pillInset = getScaledSize(basePillInset);
-  const pillPaddingX = getScaledSize(8);
-  const pillPaddingY = getScaledSize(4);
-  const pillGap = getScaledSize(4);
-  const pillRadius = getScaledSize(14);
-  const pillBlur = getScaledSize(10);
-  const iconSize = getScaledSize(14);
-  const fontSize = getScaledSize(11);
-  const lineHeight = getScaledSize(16);
+  const pillPaddingX = getScaledSize(8) * pillScaleFactor;
+  const pillPaddingY = getScaledSize(4) * pillScaleFactor;
+  const pillGap = getScaledSize(4) * pillScaleFactor;
+  const pillRadius = getScaledSize(14) * pillScaleFactor;
+  const iconSize = getScaledSize(14) * pillScaleFactor;
+  const fontSize = getScaledSize(11) * pillScaleFactor;
+  const lineHeight = getScaledSize(16) * pillScaleFactor;
 
-  // Progress bar sizing - taller on hover for interactivity
-  const progressBarHeight = getScaledSize(isProgressBarHovered ? 6 : 2);
   // Progress bar flush to bottom and sides - no padding
   const baseProgressBarBottom = 0; // Moved to bottom edge - no padding
   const baseProgressBarSide = 0; // Flush to left and right edges - no padding
   const progressBarBottom = getScaledSize(baseProgressBarBottom);
   const progressBarSide = getScaledSize(baseProgressBarSide);
 
-  // Adjust pill position when progress bar is hovered
-  const adjustedPillBottom = isProgressBarHovered
-    ? pillInset + getScaledSize(6) // Push up when progress bar is taller
-    : pillInset;
-
-  // Calculate if controls fit in the video width when selected
-  // Estimate: icon (14px) + gap (4px) + time text (~80px for "0:00 / 0:00") + padding (16px) = ~114px
-  // For audio button: + icon (14px) + gap (4px) + padding (16px) = ~34px more
-  const estimatedControlWidth =
-    iconSize + pillGap + getScaledSize(80) + pillPaddingX * 2;
-  const estimatedAudioButtonWidth = hasAudio ? iconSize + pillPaddingX * 2 : 0;
-  const totalControlWidth = estimatedControlWidth + estimatedAudioButtonWidth;
-  const controlsFitInVideo = width >= totalControlWidth;
-
-  // Handle seek area hover for scrub preview (bottom 50% of video)
+  // Handle seek area interaction - YouTube style
   const handleSeekAreaMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!seekAreaRef.current || !videoRef.current) return;
 
     const rect = seekAreaRef.current.getBoundingClientRect();
     const hoverX = e.clientX - rect.left;
+    const hoverY = e.clientY - rect.top;
     const percentage = Math.max(0, Math.min(1, hoverX / rect.width));
     const previewTime = percentage * videoDuration;
 
     if (isSelected) {
-      // Selected mode: instant scrubbing
-      setScrubPreviewTime(previewTime);
-      setIsProgressBarHovered(true);
-      videoRef.current.currentTime = previewTime;
-      setCurrentTime(previewTime);
+      // Check if hovering in bottom timeline area (bottom 60px in screen coordinates)
+      const timelineAreaHeight = 60 / zoomLevel;
+      const isInTimelineArea = hoverY >= rect.height - timelineAreaHeight;
+      setIsHoveringTimelineArea(isInTimelineArea);
+
+      // Selected mode: YouTube style - show preview, seek when dragging
+      setHoverTimelinePosition(percentage);
+
+      // If dragging, seek immediately
+      if (isDraggingSeekBar) {
+        videoRef.current.currentTime = previewTime;
+        setCurrentTime(previewTime);
+      }
     } else {
       // Hover mode: scrub immediately but pause, then resume on dwell
-      setIsHoveringSeekArea(true); // Mark that we're in seek area
-      setHoverSeekPosition(previewTime);
-      setIsProgressBarHovered(true);
+      setIsHoveringSeekArea(true);
 
       // Pause and seek immediately
       videoRef.current.pause();
@@ -371,35 +401,55 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             previewTime
           );
           videoRef.current.play().catch(() => {});
-          setHoverSeekPosition(null);
         }
       }, 500);
     }
   };
 
-  // Handle seek area click for scrubbing
+  // Handle seek bar mouse down to start dragging
+  const handleSeekAreaMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isSelected) {
+      e.stopPropagation(); // Prevent video object drag
+      setIsDraggingSeekBar(true);
+
+      // Immediately seek to clicked position (YouTube style - click to jump)
+      if (!seekAreaRef.current || !videoRef.current) return;
+      const rect = seekAreaRef.current.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+      const newTime = percentage * videoDuration;
+      videoRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
+  };
+
+  // Handle global mouse up to end dragging
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDraggingSeekBar) {
+        setIsDraggingSeekBar(false);
+      }
+    };
+
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", handleGlobalMouseUp);
+    };
+  }, [isDraggingSeekBar]);
+
+  // Handle seek area click - only for selected mode (already handled in mousedown)
   const handleSeekAreaClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation(); // Prevent triggering play/pause
 
-    if (!videoRef.current || !seekAreaRef.current) return;
-
-    const rect = seekAreaRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
-    const newTime = percentage * videoDuration;
-
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-    setScrubPreviewTime(null); // Clear preview after clicking
-    // Don't change playback state - keep playing if it was playing, paused if it was paused
+    // Click is handled by mousedown for selected mode
+    // For hover mode, clicks are ignored (only mouse move matters)
   };
 
-  // Clear scrub preview when mouse leaves seek area
+  // Clear preview when mouse leaves seek area
   const handleSeekAreaMouseLeave = () => {
-    setIsProgressBarHovered(false);
-    setScrubPreviewTime(null);
-    setHoverSeekPosition(null);
-    setIsHoveringSeekArea(false); // No longer in seek area
+    setHoverTimelinePosition(null);
+    setIsHoveringSeekArea(false);
+    setIsHoveringTimelineArea(false);
 
     // Clear hover seek timeout and resume playing if in hover mode
     if (hoverSeekTimeoutRef.current) {
@@ -431,6 +481,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const handleMuteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsMuted(!isMuted);
+  };
+
+  // Handle fullscreen toggle
+  const handleFullscreenToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+
+    const videoElement = videoRef.current;
+    if (!document.fullscreenElement) {
+      videoElement.requestFullscreen().catch((err) => {
+        console.error("Error attempting to enable fullscreen:", err);
+      });
+    } else {
+      document.exitFullscreen();
+    }
   };
 
   // Track if mouse has moved during mousedown (to distinguish click from drag)
@@ -582,326 +647,759 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* Custom controls */}
       <>
-        {/* Default duration badge - show when not hovered and not selected */}
-        {!isHovered && !isSelected && showIconAndTime && (
-          <motion.div
-            className="absolute pointer-events-none"
-            style={{
-              left: `${pillInset}px`,
-              bottom: `${pillInset}px`,
-              paddingLeft: `${pillPaddingX}px`,
-              paddingRight: `${pillPaddingX}px`,
-              paddingTop: `${pillPaddingY}px`,
-              paddingBottom: `${pillPaddingY}px`,
-              borderRadius: `${pillRadius}px`,
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              backdropFilter: `blur(${pillBlur}px)`,
-              WebkitBackdropFilter: `blur(${pillBlur}px)`,
-              boxShadow:
-                "0px 8px 24px -4px rgba(24, 39, 75, 0.04), 0px 4px 20px 0px rgba(0, 0, 0, 0.02)",
-            }}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 5 }}
-            transition={{
-              duration: 0.2,
-              ease: "easeOut",
-            }}
-          >
-            <div
-              className="flex items-center"
-              style={{
-                gap: `${pillGap}px`,
-                fontSize: `${fontSize}px`,
-                lineHeight: `${lineHeight}px`,
-              }}
-            >
-              {/* Play icon */}
+        {/* LAYOUT OPTION 1: Unified Pill - All controls including timeline in one pill */}
+        {controlsLayout === "unified-pill" && (
+          <>
+            {/* Black gradient background - shows when hovering in selected state */}
+            {isSelected && isHovered && !isDragging && (
               <div
-                className="flex items-center justify-center text-white"
+                className="absolute pointer-events-none"
                 style={{
-                  fontSize: `${iconSize}px`,
-                  lineHeight: `${iconSize}px`,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: `${Math.min(100 / zoomLevel, 120)}px`, // Clamped to max 120px
+                  background:
+                    "linear-gradient(to top, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 100%)",
+                  zIndex: 15,
+                }}
+              />
+            )}
+
+            {/* Interactive area for selected state - keeps hover detection active and allows clicking to bring back controls */}
+            {isSelected && !isDragging && !isHovered && (
+              <div
+                className="absolute cursor-pointer"
+                style={{
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  pointerEvents: "auto",
+                  zIndex: 10,
+                }}
+              />
+            )}
+
+            {/* Unified control pill - contains play, time, TIMELINE, mute, fullscreen all in one */}
+            {showIconAndTime && !isDragging && isSelected && isHovered && (
+              <div
+                className="absolute flex items-center transition-opacity duration-200"
+                style={{
+                  left: `${pillInset}px`,
+                  right: `${pillInset}px`,
+                  bottom: `${pillInset}px`,
+                  paddingLeft: `${pillPaddingX}px`,
+                  paddingRight: `${pillPaddingX}px`,
+                  paddingTop: `${pillPaddingY}px`,
+                  paddingBottom: `${pillPaddingY}px`,
+                  borderRadius: `${pillRadius}px`,
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  boxShadow:
+                    "0px 8px 24px -4px rgba(24, 39, 75, 0.04), 0px 4px 20px 0px rgba(0, 0, 0, 0.02)",
+                  zIndex: 20,
+                  gap: `${pillGap}px`,
+                  opacity: 1,
+                  pointerEvents: "auto",
                 }}
               >
-                <Play
-                  fill="white"
-                  className="text-white"
-                  style={{
-                    width: `${iconSize}px`,
-                    height: `${iconSize}px`,
-                  }}
-                />
-              </div>
-
-              {/* Duration text (simple format like "5s") */}
-              <div
-                className="text-white font-medium"
-                style={{
-                  fontSize: `${fontSize}px`,
-                  lineHeight: `${lineHeight}px`,
-                  opacity: 0.9,
-                }}
-              >
-                {durationText}
-              </div>
-
-              {/* Audio wave icon - only show if video has audio */}
-              {hasAudio && (
+                {/* Play/Pause button */}
                 <div
-                  className="flex items-center justify-center text-white"
+                  className="flex items-center justify-center text-white cursor-pointer hover:opacity-80"
                   style={{
                     fontSize: `${iconSize}px`,
                     lineHeight: `${iconSize}px`,
+                    flexShrink: 0,
+                  }}
+                  onClick={handlePlayIconClick}
+                >
+                  {isPlaying ? (
+                    <Pause
+                      fill="white"
+                      className="text-white"
+                      style={{
+                        width: `${iconSize}px`,
+                        height: `${iconSize}px`,
+                      }}
+                    />
+                  ) : (
+                    <Play
+                      fill="white"
+                      className="text-white"
+                      style={{
+                        width: `${iconSize}px`,
+                        height: `${iconSize}px`,
+                      }}
+                    />
+                  )}
+                </div>
+
+                {/* Time display */}
+                <div
+                  className="text-white font-medium"
+                  style={{
+                    fontSize: `${fontSize}px`,
+                    lineHeight: `${lineHeight}px`,
+                    opacity: 0.9,
+                    flexShrink: 0,
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  <AudioLines
-                    className="text-white"
-                    style={{
-                      width: `${iconSize}px`,
-                      height: `${iconSize}px`,
-                    }}
-                  />
+                  {detailedTimeDisplay}
                 </div>
-              )}
-            </div>
-          </motion.div>
-        )}
 
-        {/* Duration pill with play/pause - only show when selected, hovered, and at normal size and controls fit */}
-        {isSelected && isHovered && showIconAndTime && controlsFitInVideo && (
-          <motion.div
-            className="absolute"
-            style={{
-              left: `${pillInset}px`,
-              bottom: `${adjustedPillBottom}px`,
-              paddingLeft: `${pillPaddingX}px`,
-              paddingRight: `${pillPaddingX}px`,
-              paddingTop: `${pillPaddingY}px`,
-              paddingBottom: `${pillPaddingY}px`,
-              borderRadius: `${pillRadius}px`,
-              backgroundColor: "transparent",
-            }}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-            }}
-            transition={{
-              duration: 0.2,
-              ease: "easeOut",
-            }}
-          >
-            <div
-              className="flex items-center"
-              style={{
-                gap: `${pillGap}px`,
-                fontSize: `${fontSize}px`,
-                lineHeight: `${lineHeight}px`,
-              }}
-            >
-              {/* Play/Pause icon - clickable */}
-              <div
-                className="flex items-center justify-center text-white cursor-pointer hover:opacity-80 transition-opacity"
-                style={{
-                  fontSize: `${iconSize}px`,
-                  lineHeight: `${iconSize}px`,
-                  pointerEvents: "auto",
-                }}
-                onClick={handlePlayIconClick}
-              >
-                {isPlaying ? (
-                  <Pause
-                    fill="white"
-                    className="text-white"
+                {/* Timeline/Progress Bar Container - takes up remaining space */}
+                <div
+                  ref={seekAreaRef}
+                  className="relative flex-1 cursor-pointer"
+                  style={{
+                    height: `${lineHeight}px`,
+                    minWidth: `${50 / zoomLevel}px`,
+                  }}
+                  onMouseDown={handleSeekAreaMouseDown}
+                  onClick={handleSeekAreaClick}
+                  onMouseMove={handleSeekAreaMouseMove}
+                  onMouseLeave={handleSeekAreaMouseLeave}
+                >
+                  {/* Progress bar background */}
+                  <div
+                    className="absolute"
                     style={{
-                      width: `${iconSize}px`,
-                      height: `${iconSize}px`,
+                      left: 0,
+                      right: 0,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      height: `${3 / zoomLevel}px`,
+                      backgroundColor: "rgba(255, 255, 255, 0.3)",
+                      borderRadius: `${1.5 / zoomLevel}px`,
                     }}
                   />
-                ) : (
-                  <Play
-                    fill="white"
-                    className="text-white"
+
+                  {/* Preview bar (shows on hover) */}
+                  {hoverTimelinePosition !== null && (
+                    <div
+                      className="absolute left-0"
+                      style={{
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: `${hoverTimelinePosition * 100}%`,
+                        height: `${3 / zoomLevel}px`,
+                        backgroundColor: "rgba(255, 255, 255, 0.5)",
+                        borderRadius: `${1.5 / zoomLevel}px`,
+                      }}
+                    />
+                  )}
+
+                  {/* Actual progress bar */}
+                  <div
+                    className="absolute left-0 bg-white"
                     style={{
-                      width: `${iconSize}px`,
-                      height: `${iconSize}px`,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      width: `${progress}%`,
+                      height: `${3 / zoomLevel}px`,
+                      borderRadius: `${1.5 / zoomLevel}px`,
                     }}
                   />
+
+                  {/* Hover timestamp tooltip */}
+                  {hoverTimelinePosition !== null && (
+                    <div
+                      className="absolute text-white font-medium"
+                      style={{
+                        left: `${hoverTimelinePosition * 100}%`,
+                        bottom: "100%",
+                        transform: "translateX(-50%)",
+                        marginBottom: `${4 / zoomLevel}px`,
+                        fontSize: `${fontSize}px`,
+                        lineHeight: `${lineHeight}px`,
+                        opacity: 0.9,
+                        whiteSpace: "nowrap",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      {formatTime(hoverTimelinePosition * videoDuration, false)}
+                    </div>
+                  )}
+                </div>
+
+                {/* Mute button */}
+                {hasAudio && (
+                  <button
+                    onClick={handleMuteToggle}
+                    className="flex items-center justify-center text-white hover:opacity-80 cursor-pointer"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {isMuted ? (
+                      <VolumeX
+                        style={{
+                          width: `${iconSize}px`,
+                          height: `${iconSize}px`,
+                        }}
+                      />
+                    ) : (
+                      <Volume2
+                        style={{
+                          width: `${iconSize}px`,
+                          height: `${iconSize}px`,
+                        }}
+                      />
+                    )}
+                  </button>
                 )}
-              </div>
 
-              {/* Time display */}
+                {/* Fullscreen button */}
+                <button
+                  onClick={handleFullscreenToggle}
+                  className="flex items-center justify-center text-white hover:opacity-80 cursor-pointer"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Maximize
+                    style={{
+                      width: `${iconSize}px`,
+                      height: `${iconSize}px`,
+                    }}
+                  />
+                </button>
+              </div>
+            )}
+
+            {/* Default/Hover pill (non-selected state) - positioned at BOTTOM for this layout */}
+            {showIconAndTime && !isDragging && !isSelected && (
               <div
-                className="text-white font-medium"
+                className="absolute transition-opacity duration-200"
                 style={{
-                  fontSize: `${fontSize}px`,
-                  lineHeight: `${lineHeight}px`,
-                  opacity: 0.9,
-                  fontFamily: "ui-monospace, monospace",
-                }}
-              >
-                {timeDisplay}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Audio control button - only show when selected, hovered, has audio and controls fit */}
-        {isSelected &&
-          isHovered &&
-          hasAudio &&
-          showIconAndTime &&
-          controlsFitInVideo && (
-            <motion.div
-              className="absolute pointer-events-auto"
-              style={{
-                right: `${pillInset}px`,
-                bottom: `${adjustedPillBottom}px`,
-              }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{
-                opacity: 1,
-                scale: 1,
-              }}
-              transition={{
-                duration: 0.2,
-                ease: "easeOut",
-              }}
-            >
-              <button
-                onClick={handleMuteToggle}
-                className="flex items-center justify-center text-white hover:opacity-80 transition-opacity"
-                style={{
-                  padding: `${pillPaddingY}px ${pillPaddingX}px`,
+                  left: `${pillInset}px`,
+                  bottom: `${pillInset}px`, // Bottom position for unified-pill layout
+                  paddingLeft: `${pillPaddingX}px`,
+                  paddingRight: `${pillPaddingX}px`,
+                  paddingTop: `${pillPaddingY}px`,
+                  paddingBottom: `${pillPaddingY}px`,
                   borderRadius: `${pillRadius}px`,
-                  backgroundColor: "transparent",
-                  border: "none",
-                  cursor: "pointer",
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  boxShadow:
+                    "0px 8px 24px -4px rgba(24, 39, 75, 0.04), 0px 4px 20px 0px rgba(0, 0, 0, 0.02)",
+                  zIndex: 20, // Above seek area
+                  opacity: isSelected && isHoveringTimelineArea ? 0 : 1,
+                  pointerEvents:
+                    isSelected && isHoveringTimelineArea ? "none" : "auto",
                 }}
               >
-                {isMuted ? (
-                  <VolumeX
-                    style={{
-                      width: `${iconSize}px`,
-                      height: `${iconSize}px`,
-                    }}
-                  />
-                ) : (
-                  <Volume2
-                    style={{
-                      width: `${iconSize}px`,
-                      height: `${iconSize}px`,
-                    }}
-                  />
-                )}
-              </button>
-            </motion.div>
-          )}
+                <div
+                  className="flex items-center"
+                  style={{
+                    gap: `${pillGap}px`,
+                    fontSize: `${fontSize}px`,
+                    lineHeight: `${lineHeight}px`,
+                  }}
+                >
+                  {/* Play/Pause icon - shows based on showPlayIconOnHover setting */}
+                  {showPlayIconOnHover && (
+                    <div
+                      className={`flex items-center justify-center text-white transition-opacity ${
+                        isSelected
+                          ? "cursor-pointer hover:opacity-80"
+                          : "cursor-default"
+                      }`}
+                      style={{
+                        fontSize: `${iconSize}px`,
+                        lineHeight: `${iconSize}px`,
+                        pointerEvents: isSelected ? "auto" : "none",
+                      }}
+                      onClick={isSelected ? handlePlayIconClick : undefined}
+                    >
+                      {isSelected && isPlaying ? (
+                        <Pause
+                          fill="white"
+                          className="text-white"
+                          style={{
+                            width: `${iconSize}px`,
+                            height: `${iconSize}px`,
+                          }}
+                        />
+                      ) : (
+                        <Play
+                          fill="white"
+                          className="text-white"
+                          style={{
+                            width: `${iconSize}px`,
+                            height: `${iconSize}px`,
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
 
-        {/* Large seek area - bottom 40% of video, excluding control buttons */}
-        {showProgressBar && (
-          <div
-            ref={seekAreaRef}
-            className="absolute cursor-pointer"
-            style={{
-              // Start after the play pill, end before the mute button
-              // If controls don't fit, span full width
-              left:
-                showIconAndTime && controlsFitInVideo
-                  ? `${pillInset + (iconSize + pillPaddingX * 2) + pillGap}px`
-                  : 0,
-              right:
-                hasAudio && showIconAndTime && controlsFitInVideo
-                  ? `${pillInset + (iconSize + pillPaddingX * 2) + pillGap}px`
-                  : 0,
-              bottom: 0,
-              height: "40%",
-            }}
-            onClick={handleSeekAreaClick}
-            onMouseMove={handleSeekAreaMouseMove}
-            onMouseLeave={handleSeekAreaMouseLeave}
-          />
+                  {/* Time display - changes based on state: default "5s", hover "1s/2s/3s", selected "0:00 / 0:05" */}
+                  <div
+                    className="text-white font-medium"
+                    style={{
+                      fontSize: `${fontSize}px`,
+                      lineHeight: `${lineHeight}px`,
+                      opacity: 0.9,
+                    }}
+                  >
+                    {timeDisplay}
+                  </div>
+
+                  {/* Audio wave icon - only show if video has audio and NOT hovered/selected */}
+                  {hasAudio && !isHovered && !isSelected && (
+                    <div
+                      className="flex items-center justify-center text-white"
+                      style={{
+                        fontSize: `${iconSize}px`,
+                        lineHeight: `${iconSize}px`,
+                      }}
+                    >
+                      <AudioLines
+                        className="text-white"
+                        style={{
+                          width: `${iconSize}px`,
+                          height: `${iconSize}px`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
-        {/* Progress bar - show when hovered or selected, but not at micro size */}
-        {(isHovered || isSelected) && showProgressBar && (
-          <motion.div
-            ref={progressBarRef}
-            className="absolute pointer-events-none"
-            style={{
-              left: `${progressBarSide}px`,
-              right: `${progressBarSide}px`,
-              bottom: `${progressBarBottom}px`,
-            }}
-            initial={{ opacity: 0, scaleY: 0.5 }}
-            animate={{ opacity: 1, scaleY: 1 }}
-            exit={{ opacity: 0, scaleY: 0.5 }}
-            transition={{
-              duration: 0.2,
-              ease: "easeOut",
-            }}
-          >
-            {/* Background bar - anchored to bottom, grows upward */}
-            <motion.div
-              className="absolute"
+        {/* LAYOUT OPTION 2: Split Top/Bottom - Controls at top, timeline at bottom */}
+        {controlsLayout === "split-top-bottom" && (
+          <>
+            {/* Top controls pill - play/pause + time on left, mute/fullscreen on right (when selected) */}
+            {showIconAndTime && !isDragging && isSelected && (
+              <div
+                className="absolute flex items-center justify-between"
+                style={{
+                  left: `${pillInset}px`,
+                  right: `${pillInset}px`,
+                  top: `${pillInset}px`,
+                  zIndex: 20,
+                }}
+              >
+                {/* Left: Play/Pause + Time display in one pill */}
+                <div
+                  className="flex items-center"
+                  style={{
+                    paddingLeft: `${pillPaddingX}px`,
+                    paddingRight: `${pillPaddingX}px`,
+                    paddingTop: `${pillPaddingY}px`,
+                    paddingBottom: `${pillPaddingY}px`,
+                    borderRadius: `${pillRadius}px`,
+                    backgroundColor: "rgba(255, 255, 255, 0.1)",
+                    boxShadow:
+                      "0px 8px 24px -4px rgba(24, 39, 75, 0.04), 0px 4px 20px 0px rgba(0, 0, 0, 0.02)",
+                    gap: `${pillGap}px`,
+                  }}
+                >
+                  {/* Play/Pause button */}
+                  <div
+                    className="flex items-center justify-center text-white cursor-pointer hover:opacity-80"
+                    style={{
+                      fontSize: `${iconSize}px`,
+                      lineHeight: `${iconSize}px`,
+                    }}
+                    onClick={handlePlayIconClick}
+                  >
+                    {isPlaying ? (
+                      <Pause
+                        fill="white"
+                        className="text-white"
+                        style={{
+                          width: `${iconSize}px`,
+                          height: `${iconSize}px`,
+                        }}
+                      />
+                    ) : (
+                      <Play
+                        fill="white"
+                        className="text-white"
+                        style={{
+                          width: `${iconSize}px`,
+                          height: `${iconSize}px`,
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Time display */}
+                  <div
+                    className="text-white font-medium"
+                    style={{
+                      fontSize: `${fontSize}px`,
+                      lineHeight: `${lineHeight}px`,
+                      opacity: 0.9,
+                    }}
+                  >
+                    {detailedTimeDisplay}
+                  </div>
+                </div>
+
+                {/* Right: Control buttons */}
+                <div
+                  className="flex items-center"
+                  style={{
+                    gap: `${pillGap}px`,
+                  }}
+                >
+                  {/* Mute button */}
+                  {hasAudio && (
+                    <button
+                      onClick={handleMuteToggle}
+                      className="flex items-center justify-center text-white hover:opacity-80 cursor-pointer"
+                      style={{
+                        padding: `${pillPaddingY}px ${pillPaddingX}px`,
+                        borderRadius: `${pillRadius}px`,
+                        backgroundColor: "rgba(255, 255, 255, 0.1)",
+                        boxShadow:
+                          "0px 8px 24px -4px rgba(24, 39, 75, 0.04), 0px 4px 20px 0px rgba(0, 0, 0, 0.02)",
+                        border: "none",
+                      }}
+                    >
+                      {isMuted ? (
+                        <VolumeX
+                          style={{
+                            width: `${iconSize}px`,
+                            height: `${iconSize}px`,
+                          }}
+                        />
+                      ) : (
+                        <Volume2
+                          style={{
+                            width: `${iconSize}px`,
+                            height: `${iconSize}px`,
+                          }}
+                        />
+                      )}
+                    </button>
+                  )}
+
+                  {/* Fullscreen button */}
+                  <button
+                    onClick={handleFullscreenToggle}
+                    className="flex items-center justify-center text-white hover:opacity-80 cursor-pointer"
+                    style={{
+                      padding: `${pillPaddingY}px ${pillPaddingX}px`,
+                      borderRadius: `${pillRadius}px`,
+                      backgroundColor: "rgba(255, 255, 255, 0.1)",
+                      boxShadow:
+                        "0px 8px 24px -4px rgba(24, 39, 75, 0.04), 0px 4px 20px 0px rgba(0, 0, 0, 0.02)",
+                      border: "none",
+                    }}
+                  >
+                    <Maximize
+                      style={{
+                        width: `${iconSize}px`,
+                        height: `${iconSize}px`,
+                      }}
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Default/Hover pill (non-selected state) - positioned at TOP for this layout */}
+            {showIconAndTime && !isDragging && !isSelected && (
+              <div
+                className="absolute"
+                style={{
+                  left: `${pillInset}px`,
+                  top: `${pillInset}px`, // Top position for split-top-bottom layout
+                  paddingLeft: `${pillPaddingX}px`,
+                  paddingRight: `${pillPaddingX}px`,
+                  paddingTop: `${pillPaddingY}px`,
+                  paddingBottom: `${pillPaddingY}px`,
+                  borderRadius: `${pillRadius}px`,
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  boxShadow:
+                    "0px 8px 24px -4px rgba(24, 39, 75, 0.04), 0px 4px 20px 0px rgba(0, 0, 0, 0.02)",
+                  zIndex: 20,
+                }}
+              >
+                <div
+                  className="flex items-center"
+                  style={{
+                    gap: `${pillGap}px`,
+                    fontSize: `${fontSize}px`,
+                    lineHeight: `${lineHeight}px`,
+                  }}
+                >
+                  {/* Play icon - shows based on showPlayIconOnHover setting */}
+                  {showPlayIconOnHover && (
+                    <div
+                      className="flex items-center justify-center text-white"
+                      style={{
+                        fontSize: `${iconSize}px`,
+                        lineHeight: `${iconSize}px`,
+                      }}
+                    >
+                      <Play
+                        fill="white"
+                        className="text-white"
+                        style={{
+                          width: `${iconSize}px`,
+                          height: `${iconSize}px`,
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Time display */}
+                  <div
+                    className="text-white font-medium"
+                    style={{
+                      fontSize: `${fontSize}px`,
+                      lineHeight: `${lineHeight}px`,
+                      opacity: 0.9,
+                    }}
+                  >
+                    {timeDisplay}
+                  </div>
+
+                  {/* Audio wave icon */}
+                  {hasAudio && !isHovered && (
+                    <div
+                      className="flex items-center justify-center text-white"
+                      style={{
+                        fontSize: `${iconSize}px`,
+                        lineHeight: `${iconSize}px`,
+                      }}
+                    >
+                      <AudioLines
+                        className="text-white"
+                        style={{
+                          width: `${iconSize}px`,
+                          height: `${iconSize}px`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ===== SHARED HOVER SCRUB (for both layouts when not selected) ===== */}
+        {!isSelected && !isDragging && (
+          <>
+            {/* Full-height scrub area */}
+            <div
+              ref={seekAreaRef}
+              className="absolute cursor-pointer"
               style={{
                 left: 0,
                 right: 0,
+                top: 0,
                 bottom: 0,
-                backgroundColor: "rgba(0, 0, 0, 0.56)",
-                borderRadius: 0,
-                boxShadow: "0px 2px 10px 0px rgba(0, 0, 0, 0.1)",
+                pointerEvents: "auto",
+                zIndex: 10,
               }}
-              initial={{ height: progressBarHeight }}
-              animate={{ height: progressBarHeight }}
-              transition={{
-                type: "spring",
-                stiffness: 500,
-                damping: 30,
-                mass: 0.5,
-              }}
+              onMouseDown={handleSeekAreaMouseDown}
+              onClick={handleSeekAreaClick}
+              onMouseMove={handleSeekAreaMouseMove}
+              onMouseLeave={handleSeekAreaMouseLeave}
             />
 
-            {/* Progress bar - shows current or preview position */}
-            <motion.div
-              className="absolute left-0 bg-white"
+            {/* Hover progress bar at bottom */}
+            {isHovered && showProgressBar && (
+              <div
+                className="absolute pointer-events-none"
+                style={{
+                  left: `${progressBarSide}px`,
+                  right: `${progressBarSide}px`,
+                  bottom: `${progressBarBottom}px`,
+                }}
+              >
+                {/* Background track */}
+                <div
+                  className="absolute"
+                  style={{
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: `${3 / zoomLevel}px`,
+                    backgroundColor: "rgba(255, 255, 255, 0.3)",
+                    borderRadius: 0,
+                  }}
+                />
+
+                {/* Preview bar (shows hover position) */}
+                {hoverTimelinePosition !== null && (
+                  <div
+                    className="absolute left-0"
+                    style={{
+                      bottom: 0,
+                      width: `${hoverTimelinePosition * 100}%`,
+                      height: `${3 / zoomLevel}px`,
+                      backgroundColor: "rgba(255, 255, 255, 0.5)",
+                      borderRadius: 0,
+                    }}
+                  />
+                )}
+
+                {/* Actual progress bar */}
+                <div
+                  className="absolute left-0 bg-white"
+                  style={{
+                    bottom: 0,
+                    width: `${progress}%`,
+                    height: `${3 / zoomLevel}px`,
+                    borderRadius: 0,
+                  }}
+                />
+
+                {/* Hover timestamp */}
+                {hoverTimelinePosition !== null && (
+                  <div
+                    className="absolute text-white font-medium"
+                    style={{
+                      left: `${hoverTimelinePosition * 100}%`,
+                      bottom: `${10 / zoomLevel}px`,
+                      transform: "translate(-50%, -100%)",
+                      fontSize: `${fontSize}px`,
+                      lineHeight: `${lineHeight}px`,
+                      opacity: 0.9,
+                      whiteSpace: "nowrap",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {formatTime(hoverTimelinePosition * videoDuration, false)}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ===== SELECTED STATE: Scrub area and Progress Bar for split-top-bottom layout ===== */}
+        {/* For unified-pill layout, these are integrated into the pill itself */}
+
+        {/* Scrub area - bottom 60px for selected state only (hide when dragging) */}
+        {controlsLayout === "split-top-bottom" &&
+          isSelected &&
+          showProgressBar &&
+          !isDragging && (
+            <div
+              ref={seekAreaRef}
+              className="absolute cursor-pointer"
               style={{
+                // Full width
+                left: 0,
+                right: 0,
+                height: `${60 / zoomLevel}px`,
                 bottom: 0,
-                width: `${previewProgress}%`,
-                borderRadius: 0,
-                boxShadow: "0px 2px 10px 0px rgba(0, 0, 0, 0.1)",
-                opacity: scrubPreviewTime !== null ? 0.7 : 1,
-                transition:
-                  scrubPreviewTime !== null
-                    ? "opacity 0.15s ease-in-out"
-                    : "none",
+                pointerEvents: "auto",
+                zIndex: 10, // Below buttons
               }}
-              initial={{ height: progressBarHeight }}
-              animate={{ height: progressBarHeight }}
-              transition={{
-                type: "spring",
-                stiffness: 500,
-                damping: 30,
-                mass: 0.5,
-              }}
+              onMouseDown={handleSeekAreaMouseDown}
+              onClick={handleSeekAreaClick}
+              onMouseMove={handleSeekAreaMouseMove}
+              onMouseLeave={handleSeekAreaMouseLeave}
             />
+          )}
 
-            {/* Actual playback progress indicator (thin line when scrubbing or hover seeking) */}
-            {(scrubPreviewTime !== null || hoverSeekPosition !== null) && (
+        {/* YouTube-style Progress Bar - show when selected (hide when dragging) */}
+        {controlsLayout === "split-top-bottom" &&
+          isSelected &&
+          showProgressBar &&
+          !isDragging && (
+            <div
+              ref={progressBarRef}
+              className="absolute pointer-events-none"
+              style={{
+                left: `${progressBarSide}px`,
+                right: `${progressBarSide}px`,
+                bottom: `${progressBarBottom}px`,
+              }}
+            >
+              {/* Subtle black gradient bottom-up when hovering controls in selected mode */}
+              {isSelected && isHovered && (
+                <div
+                  className="absolute"
+                  style={{
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: `${Math.min(80 / zoomLevel, 100)}px`, // Clamped to max 100px
+                    background:
+                      "linear-gradient(to top, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 100%)",
+                    pointerEvents: "none",
+                  }}
+                />
+              )}
+
+              {/* Background track - dark gray */}
+              <div
+                className="absolute"
+                style={{
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: `${3 / zoomLevel}px`, // Fixed 3px height
+                  backgroundColor: "rgba(255, 255, 255, 0.3)",
+                  borderRadius: 0,
+                }}
+              />
+
+              {/* Preview bar (transparent white) - shows on hover */}
+              {hoverTimelinePosition !== null && (
+                <div
+                  className="absolute left-0"
+                  style={{
+                    bottom: 0,
+                    width: `${hoverTimelinePosition * 100}%`,
+                    height: `${3 / zoomLevel}px`,
+                    backgroundColor: "rgba(255, 255, 255, 0.5)",
+                    borderRadius: 0,
+                  }}
+                />
+              )}
+
+              {/* Actual progress bar - pure white */}
               <div
                 className="absolute left-0 bg-white"
                 style={{
                   bottom: 0,
                   width: `${progress}%`,
-                  height: `${progressBarHeight}px`,
+                  height: `${3 / zoomLevel}px`,
                   borderRadius: 0,
-                  opacity: 0.3,
                 }}
               />
-            )}
-          </motion.div>
-        )}
+
+              {/* Time tooltip - shows current hover time (same style as time code) */}
+              {hoverTimelinePosition !== null && (
+                <div
+                  className="absolute text-white font-medium"
+                  style={{
+                    left: `${hoverTimelinePosition * 100}%`,
+                    bottom: `${10 / zoomLevel}px`,
+                    transform: "translate(-50%, -100%)",
+                    fontSize: `${fontSize}px`,
+                    lineHeight: `${lineHeight}px`,
+                    opacity: 0.9,
+                    whiteSpace: "nowrap",
+                    pointerEvents: "none",
+                  }}
+                >
+                  {formatTime(hoverTimelinePosition * videoDuration, false)}
+                </div>
+              )}
+            </div>
+          )}
       </>
     </div>
   );

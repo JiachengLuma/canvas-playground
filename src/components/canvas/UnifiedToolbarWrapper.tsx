@@ -138,6 +138,92 @@ function getActualDimensions(
   }
 }
 
+// Helper to calculate the actual visual position of an object inside an autolayout frame
+function getActualPosition(
+  obj: CanvasObjectType,
+  allObjects: CanvasObjectType[]
+): { x: number; y: number } {
+  // If object is not inside an autolayout frame, return its stored position
+  if (!obj.parentId) {
+    return { x: obj.x, y: obj.y };
+  }
+
+  const parent = allObjects.find((o) => o.id === obj.parentId);
+  if (!parent || parent.type !== "frame" || !(parent as any).autoLayout) {
+    return { x: obj.x, y: obj.y };
+  }
+
+  // Object is inside an autolayout frame - calculate its visual position
+  const frameObj = parent as any;
+  const padding = frameObj.padding || 20;
+  const gap = frameObj.gap || 20;
+  const layout = frameObj.layout || "hstack";
+  const children = allObjects.filter((o) => o.parentId === parent.id);
+
+  // Find the index of the current object among its siblings
+  const childIndex = children.findIndex((c) => c.id === obj.id);
+  if (childIndex === -1) {
+    return { x: obj.x, y: obj.y };
+  }
+
+  let currentX = parent.x + padding;
+  let currentY = parent.y + padding;
+
+  if (layout === "hstack") {
+    // Horizontal stack: add up widths of all previous siblings
+    for (let i = 0; i < childIndex; i++) {
+      currentX += children[i].width + gap;
+    }
+    return { x: currentX, y: currentY };
+  } else if (layout === "vstack") {
+    // Vertical stack: add up heights of all previous siblings
+    for (let i = 0; i < childIndex; i++) {
+      currentY += children[i].height + gap;
+    }
+    return { x: currentX, y: currentY };
+  } else {
+    // Grid layout: calculate position based on wrapping
+    const borderWidth = 2;
+    const availableWidth = parent.width - padding * 2 - borderWidth;
+    let currentRowWidth = 0;
+    let rowHeight = 0;
+
+    for (let i = 0; i <= childIndex; i++) {
+      const child = children[i];
+      const childWidth = child.width;
+      const childHeight = child.height;
+
+      const widthNeeded =
+        currentRowWidth === 0 ? childWidth : currentRowWidth + gap + childWidth;
+
+      // Check if we need to wrap to next row
+      if (widthNeeded > availableWidth && currentRowWidth > 0) {
+        // Wrap to next row
+        currentX = parent.x + padding;
+        currentY += rowHeight + gap;
+        currentRowWidth = 0;
+        rowHeight = 0;
+      }
+
+      // If this is our target child, return its position
+      if (i === childIndex) {
+        return { x: currentX, y: currentY };
+      }
+
+      // Update for next iteration
+      if (currentRowWidth === 0) {
+        currentRowWidth = childWidth;
+      } else {
+        currentRowWidth += gap + childWidth;
+      }
+      currentX += childWidth + gap;
+      rowHeight = Math.max(rowHeight, childHeight);
+    }
+  }
+
+  return { x: obj.x, y: obj.y };
+}
+
 export function UnifiedToolbarWrapper({
   mode,
   object,
@@ -147,7 +233,7 @@ export function UnifiedToolbarWrapper({
   zoomLevel,
   panOffset,
   isMultiSelect,
-  isDragging,
+  isDragging: _isDragging,
   isResizing,
   onToolbarHoverEnter,
   onToolbarHoverLeave,
@@ -287,7 +373,7 @@ export function UnifiedToolbarWrapper({
     return null; // Check if this object type should show toolbar
   if (mode === "multi" && !bounds) return null;
   if (mode === "multi" && !isMultiSelect) return null; // Don't show multi toolbar in single-select mode
-  if (isDragging || isResizing) return null;
+  if (_isDragging || isResizing) return null; // Hide toolbar when dragging or resizing
   if (mode === "single" && object?.state === "generating") return null;
   // Don't show toolbar during agent frame creation
   if (mode === "single" && object?.type === "frame") {
@@ -348,7 +434,10 @@ export function UnifiedToolbarWrapper({
     const actualDims = getActualDimensions(object, objects);
     const width = actualDims.width;
     const height = actualDims.height;
-    const centerX = object.x + width / 2;
+
+    // Get the actual visual position (important for objects inside autolayout frames)
+    const actualPos = getActualPosition(object, objects);
+    const centerX = actualPos.x + width / 2;
 
     objectTypes = [object.type];
     colorTag = object.colorTag || "none";
@@ -357,7 +446,8 @@ export function UnifiedToolbarWrapper({
     // Check if metadata header should be shown using generalized size system
     const shouldShowMetadataHeader =
       !isMultiSelect &&
-      !isDragging &&
+      !_isDragging && // Hide during drag
+      !isResizing && // Hide during resize
       object.type !== "frame" &&
       object.state !== "generating" &&
       !object.parentId &&
@@ -392,7 +482,7 @@ export function UnifiedToolbarWrapper({
     const selectionGap = getSelectionGap(width, height, zoomLevel) / zoomLevel; // Convert to canvas pixels
     const toolbarLeftCanvas = centerX;
     const toolbarTopCanvas =
-      object.y - selectionGap - toolbarGapFromObject - metadataOffset;
+      actualPos.y - selectionGap - toolbarGapFromObject - metadataOffset;
     toolbarLeftScreen = toolbarLeftCanvas * zoomLevel + panOffset.x;
     toolbarTopScreen = toolbarTopCanvas * zoomLevel + panOffset.y;
 
@@ -401,7 +491,7 @@ export function UnifiedToolbarWrapper({
     const bottomButtonGap = getToolbarGap(zoomLevel);
     const tabButtonLeftCanvas = centerX;
     const tabButtonTopCanvas =
-      object.y + height + selectionGap + bottomButtonGap;
+      actualPos.y + height + selectionGap + bottomButtonGap;
     tabButtonLeftScreen = tabButtonLeftCanvas * zoomLevel + panOffset.x;
     tabButtonTopScreen = tabButtonTopCanvas * zoomLevel + panOffset.y;
 

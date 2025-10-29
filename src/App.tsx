@@ -69,6 +69,10 @@ export default function App() {
   const [frameLabelPosition, setFrameLabelPosition] = useState<
     "background" | "drag-handle"
   >("drag-handle");
+  const [videoControlsLayout, setVideoControlsLayout] = useState<
+    "unified-pill" | "split-top-bottom"
+  >("unified-pill");
+  const [showPlayIconOnHover, setShowPlayIconOnHover] = useState(true);
 
   // ===== Multi-Video Sync Play Feature =====
   // Track when hovering over a video while multiple videos are selected
@@ -287,11 +291,14 @@ export default function App() {
       setHoveredVideoId(null);
     }
 
-    // Only hide toolbar if object is NOT selected
+    // Toolbar should stay visible when an object is selected
+    // Only hide toolbar when leaving non-selected objects during hover
     const isSelected = selection.selectedIds.includes(id);
     if (!isSelected) {
+      // Only hide toolbar if leaving a non-selected object
       toolbar.handleHoverLeave();
     }
+    // If leaving a selected object, toolbar stays visible (no action needed)
   };
 
   // Clear hovered video state when mouse leaves to empty canvas
@@ -333,9 +340,13 @@ export default function App() {
   };
 
   // ===== Derived State =====
-  const activeObject = toolbar.activeToolbarId
-    ? canvas.objects.find((obj) => obj.id === toolbar.activeToolbarId) || null
-    : null;
+  // For single-select toolbar, use the selected object (not activeToolbarId)
+  // This ensures toolbar stays visible based on selection, not hover state
+  const activeObject =
+    !selection.isMultiSelect && selection.selectedIds.length === 1
+      ? canvas.objects.find((obj) => obj.id === selection.selectedIds[0]) ||
+        null
+      : null;
 
   const selectedObjectTypes = canvas.objects
     .filter((obj) => selection.selectedIds.includes(obj.id))
@@ -425,6 +436,18 @@ export default function App() {
           );
           setFrameLabelPosition(newPosition);
         }}
+        videoControlsLayout={videoControlsLayout}
+        onToggleVideoControlsLayout={() => {
+          const newLayout =
+            videoControlsLayout === "unified-pill"
+              ? "split-top-bottom"
+              : "unified-pill";
+          setVideoControlsLayout(newLayout);
+        }}
+        showPlayIconOnHover={showPlayIconOnHover}
+        onToggleShowPlayIconOnHover={() => {
+          setShowPlayIconOnHover(!showPlayIconOnHover);
+        }}
       />
 
       {/* Canvas */}
@@ -457,6 +480,8 @@ export default function App() {
         hoveredVideoId={hoveredVideoId}
         selectionPaddingMode={selectionPaddingMode}
         frameLabelPosition={frameLabelPosition}
+        videoControlsLayout={videoControlsLayout}
+        showPlayIconOnHover={showPlayIconOnHover}
         onCanvasMouseDown={mouseHandlers.handleCanvasMouseDown}
         onCanvasMouseMove={mouseHandlers.handleCanvasMouseMove}
         onCanvasMouseUp={mouseHandlers.handleCanvasMouseUp}

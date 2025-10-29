@@ -251,13 +251,20 @@ export const createArtifactHandlers = (params: ArtifactHandlersParams) => {
         const newObjects = [...prev, docObj];
         const frame = newObjects.find(obj => obj.id === frameId);
         if (frame && frame.type === 'frame') {
+          const frameObj = frame as any;
+          const padding = frameObj.padding || 20;
+          const gap = frameObj.gap || 20;
           const children = [docObj.id];
           const allChildren = newObjects.filter(o => children.includes(o.id));
-          // With box-sizing: border-box, border is INSIDE width, so don't add it separately
+          
+          // Calculate width to fit all items in ONE row for grid layout
+          // With box-sizing: border-box, we need to account for border (1px on each side = 2px total)
+          const borderWidth = 2;
           const totalWidth = allChildren.reduce((sum, child) => sum + child.width, 0) + 
-                             (10 * 2) + // padding
-                             (10 * (allChildren.length - 1)); // gaps
-          const maxHeight = Math.max(...allChildren.map(c => c.height)) + (10 * 2);
+                             (padding * 2) + // left and right padding
+                             (gap * (allChildren.length - 1)) + // gaps between items
+                             borderWidth; // border on both sides
+          const maxHeight = Math.max(...allChildren.map(c => c.height)) + (padding * 2) + borderWidth;
           
           return newObjects.map(obj => 
             obj.id === frameId 
@@ -322,13 +329,20 @@ export const createArtifactHandlers = (params: ArtifactHandlersParams) => {
         const newObjects = [...prev, imageObj];
         const frame = newObjects.find(obj => obj.id === frameId);
         if (frame && frame.type === 'frame') {
+          const frameObj = frame as any;
+          const padding = frameObj.padding || 20;
+          const gap = frameObj.gap || 20;
           const children = [...(frame.children || []), imageObj.id];
           const allChildren = newObjects.filter(o => children.includes(o.id));
-          // With box-sizing: border-box, border is INSIDE width, so don't add it separately
+          
+          // Calculate width to fit all items in ONE row for grid layout
+          // With box-sizing: border-box, we need to account for border (1px on each side = 2px total)
+          const borderWidth = 2;
           const totalWidth = allChildren.reduce((sum, child) => sum + child.width, 0) + 
-                             (10 * 2) + // padding
-                             (10 * (allChildren.length - 1)); // gaps
-          const maxHeight = Math.max(...allChildren.map(c => c.height)) + (10 * 2);
+                             (padding * 2) + // left and right padding
+                             (gap * (allChildren.length - 1)) + // gaps between items
+                             borderWidth; // border on both sides
+          const maxHeight = Math.max(...allChildren.map(c => c.height)) + (padding * 2) + borderWidth;
           
           return newObjects.map(obj => 
             obj.id === frameId 
@@ -396,13 +410,20 @@ export const createArtifactHandlers = (params: ArtifactHandlersParams) => {
         const newObjects = [...prev, videoObj];
         const frame = newObjects.find(obj => obj.id === frameId);
         if (frame && frame.type === 'frame') {
+          const frameObj = frame as any;
+          const padding = frameObj.padding || 20;
+          const gap = frameObj.gap || 20;
           const children = [...(frame.children || []), videoObj.id];
           const allChildren = newObjects.filter(o => children.includes(o.id));
-          // With box-sizing: border-box, border is INSIDE width, so don't add it separately
+          
+          // Calculate width to fit all items in ONE row for grid layout
+          // With box-sizing: border-box, we need to account for border (1px on each side = 2px total)
+          const borderWidth = 2;
           const totalWidth = allChildren.reduce((sum, child) => sum + child.width, 0) + 
-                             (10 * 2) + // padding
-                             (10 * (allChildren.length - 1)); // gaps
-          const maxHeight = Math.max(...allChildren.map(c => c.height)) + (10 * 2);
+                             (padding * 2) + // left and right padding
+                             (gap * (allChildren.length - 1)) + // gaps between items
+                             borderWidth; // border on both sides
+          const maxHeight = Math.max(...allChildren.map(c => c.height)) + (padding * 2) + borderWidth;
           
           return newObjects.map(obj => 
             obj.id === frameId 
@@ -469,14 +490,22 @@ export const createArtifactHandlers = (params: ArtifactHandlersParams) => {
         const newObjects = [...prev, videoObj];
         const frame = newObjects.find(obj => obj.id === frameId);
         if (frame && frame.type === 'frame') {
+          const frameObj = frame as any;
+          const padding = frameObj.padding || 20;
+          const gap = frameObj.gap || 20;
           const children = [...(frame.children || []), videoObj.id];
           const allChildren = newObjects.filter(o => children.includes(o.id));
           console.log('[Agent Frame] Adding video 2. Existing children:', frame.children, 'New children:', children, 'All children:', allChildren.map(c => ({ id: c.id, type: c.type, width: c.width })));
+          
+          // Calculate width to fit all items in ONE row for grid layout
+          // With box-sizing: border-box, we need to account for border (1px on each side = 2px total)
+          const borderWidth = 2;
           const totalWidth = allChildren.reduce((sum, child) => sum + child.width, 0) + 
-                             (20 * 2) + // padding
-                             (15 * (allChildren.length - 1)); // gaps
-          const maxHeight = Math.max(...allChildren.map(c => c.height)) + (20 * 2);
-          console.log('[Agent Frame] New dimensions:', { totalWidth, maxHeight, childrenCount: allChildren.length });
+                             (padding * 2) + // left and right padding
+                             (gap * (allChildren.length - 1)) + // gaps between items
+                             borderWidth; // border on both sides
+          const maxHeight = Math.max(...allChildren.map(c => c.height)) + (padding * 2) + borderWidth;
+          console.log('[Agent Frame] New dimensions:', { totalWidth, maxHeight, childrenCount: allChildren.length, padding, gap, borderWidth });
           
           return newObjects.map(obj => 
             obj.id === frameId 
@@ -543,14 +572,22 @@ export const createArtifactHandlers = (params: ArtifactHandlersParams) => {
         const newObjects = [...prev, videoObj];
         const frame = newObjects.find(obj => obj.id === frameId);
         if (frame && frame.type === 'frame') {
+          const frameObj = frame as any;
+          const padding = frameObj.padding || 20;
+          const gap = frameObj.gap || 20;
           const children = [...(frame.children || []), videoObj.id];
           const allChildren = newObjects.filter(o => children.includes(o.id));
           console.log('[Agent Frame] Adding video 3. Existing children:', frame.children, 'New children:', children, 'All children:', allChildren.map(c => ({ id: c.id, type: c.type, width: c.width })));
+          
+          // Calculate width to fit all items in ONE row for grid layout
+          // With box-sizing: border-box, we need to account for border (1px on each side = 2px total)
+          const borderWidth = 2;
           const totalWidth = allChildren.reduce((sum, child) => sum + child.width, 0) + 
-                             (20 * 2) + // padding
-                             (15 * (allChildren.length - 1)); // gaps
-          const maxHeight = Math.max(...allChildren.map(c => c.height)) + (20 * 2);
-          console.log('[Agent Frame] New dimensions:', { totalWidth, maxHeight, childrenCount: allChildren.length });
+                             (padding * 2) + // left and right padding
+                             (gap * (allChildren.length - 1)) + // gaps between items
+                             borderWidth; // border on both sides
+          const maxHeight = Math.max(...allChildren.map(c => c.height)) + (padding * 2) + borderWidth;
+          console.log('[Agent Frame] New dimensions:', { totalWidth, maxHeight, childrenCount: allChildren.length, padding, gap, borderWidth });
           
           return newObjects.map(obj => 
             obj.id === frameId 
