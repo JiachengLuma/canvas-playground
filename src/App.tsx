@@ -6,7 +6,7 @@
 import { useRef, useState, useEffect } from "react";
 
 // Types
-import { ColorTag } from "./types";
+import { ArtifactType, ColorTag } from "./types";
 
 // Components
 import { ZoomControls } from "./components/ZoomControls";
@@ -14,9 +14,13 @@ import { CanvasContextMenu } from "./components/CanvasContextMenu";
 import { HeaderToolbar } from "./components/toolbar/HeaderToolbar";
 import { CanvasLayer } from "./components/canvas/CanvasLayer";
 import { Documentation } from "./components/Documentation";
+import { DebugAttentionOverlay } from "./components/DebugAttentionOverlay";
+import { OffScreenNotifications } from "./components/OffScreenNotifications";
+import { LAYOUT_CONFIG } from "./config/layoutConfig";
 
 // Config
 import { INITIAL_OBJECTS } from "./config/initialObjects";
+import { INITIAL_OBJECTS_EMPTY } from "./config/initialObjects.empty";
 
 // Hooks
 import { useCanvasState } from "./hooks/useCanvasState";
@@ -30,6 +34,9 @@ import { useFrameDrawing } from "./hooks/useFrameDrawing";
 import { useContextMenu } from "./hooks/useContextMenu";
 import { useWheel } from "./hooks/useWheel";
 import { useColorTheme } from "./hooks/useColorTheme";
+import { useAttentionTracking } from "./hooks/useAttentionTracking";
+import { useCursorPosition } from "./hooks/useCursorPosition";
+import { useOffScreenAgentFrames } from "./hooks/useOffScreenAgentFrames";
 
 // Handlers
 import { createObjectHandlers } from "./handlers/objectHandlers";
@@ -40,6 +47,7 @@ import { createCanvasHandlers } from "./handlers/canvasHandlers";
 
 // Utils
 import { promoteToHighestZIndex } from "./utils/canvasUtils";
+import { checkAndDissolveFrames } from "./utils/agentFrameManager";
 
 export default function App() {
   // ===== Refs =====
@@ -60,6 +68,94 @@ export default function App() {
   });
   const frameDrawing = useFrameDrawing();
   const contextMenuState = useContextMenu();
+  const cursorTracker = useCursorPosition();
+
+  const computeAnchorObjectId = (canvasPoint?: {
+    x: number;
+    y: number;
+  }): string | undefined => {
+    const gap = LAYOUT_CONFIG.PLACEMENT_GAP_PX;
+    const point = canvasPoint ?? cursorTracker.cursorPosition?.canvas;
+
+    const getObjectById = (id: string) =>
+      canvas.objects.find((obj) => obj.id === id);
+
+    const candidateId =
+      selection.selectedIds[selection.selectedIds.length - 1] ||
+      toolbar.activeToolbarId ||
+      undefined;
+    const candidate = candidateId ? getObjectById(candidateId) : undefined;
+
+    const isPointNearObject = (
+      obj: typeof candidate,
+      anchorPoint?: { x: number; y: number }
+    ) => {
+      if (!obj) return false;
+      if (!anchorPoint) return true;
+
+      const expandedX1 = obj.x - gap;
+      const expandedX2 = obj.x + obj.width + gap * 3;
+      const expandedY1 = obj.y - gap;
+      const expandedY2 = obj.y + obj.height + gap * 2;
+
+      if (
+        anchorPoint.x >= expandedX1 &&
+        anchorPoint.x <= expandedX2 &&
+        anchorPoint.y >= expandedY1 &&
+        anchorPoint.y <= expandedY2
+      ) {
+        return true;
+      }
+
+      const centerX = obj.x + obj.width / 2;
+      const centerY = obj.y + obj.height / 2;
+      const distance = Math.hypot(
+        anchorPoint.x - centerX,
+        anchorPoint.y - centerY
+      );
+      return distance < 200;
+    };
+
+    if (candidate && isPointNearObject(candidate, point)) {
+      return candidate.id;
+    }
+
+    if (point) {
+      // Prefer an object to the left that shares roughly the same row
+      let rowNeighbor: { id: string; rightEdge: number } | undefined;
+      canvas.objects.forEach((obj) => {
+        if (obj.type === "frame") return;
+        const verticalOverlap =
+          point.y >= obj.y - gap && point.y <= obj.y + obj.height + gap;
+        if (!verticalOverlap) return;
+        const objRight = obj.x + obj.width;
+        if (objRight <= point.x + gap) {
+          if (!rowNeighbor || objRight > rowNeighbor.rightEdge) {
+            rowNeighbor = { id: obj.id, rightEdge: objRight };
+          }
+        }
+      });
+      if (rowNeighbor) {
+        return rowNeighbor.id;
+      }
+
+      let nearest: { id: string; distance: number } | undefined;
+      canvas.objects.forEach((obj) => {
+        if (obj.type === "frame") return;
+        const dx = Math.max(obj.x - point.x, 0, point.x - (obj.x + obj.width));
+        const dy = Math.max(obj.y - point.y, 0, point.y - (obj.y + obj.height));
+        const distance = Math.hypot(dx, dy);
+        if (distance < 160 && (!nearest || distance < nearest.distance)) {
+          nearest = { id: obj.id, distance };
+        }
+      });
+      if (nearest) {
+        return nearest.id;
+      }
+    }
+
+    return undefined;
+  };
   const [showDocumentation, setShowDocumentation] = useState(false);
   const colorTheme = useColorTheme();
   const [videoPauseOnSelect, setVideoPauseOnSelect] = useState(false);
@@ -73,6 +169,12 @@ export default function App() {
     "unified-pill" | "split-top-bottom"
   >("unified-pill");
   const [showPlayIconOnHover, setShowPlayIconOnHover] = useState(true);
+
+  // ===== Layout Engine Debug State =====
+  const [showAttentionScores, setShowAttentionScores] = useState(false);
+  const [canvasMode, setCanvasMode] = useState<"empty" | "showcase">(
+    "showcase"
+  );
 
   // ===== Multi-Video Sync Play Feature =====
   // Track when hovering over a video while multiple videos are selected
@@ -187,7 +289,48 @@ export default function App() {
     setToolbarSystemActivated: toolbar.setToolbarSystemActivated,
   });
 
+  // ===== Attention Tracking =====
+  const attentionTracking = useAttentionTracking(
+    canvas.objects,
+    canvas.zoomLevel,
+    canvas.panOffset,
+    canvasRef,
+    cursorTracker.cursorPosition?.canvas
+  );
+
+  // Off-screen agent frame notifications
+  const offScreenFrames = useOffScreenAgentFrames(
+    canvas.objects,
+    canvas.zoomLevel,
+    canvas.panOffset,
+    canvasRef
+  );
+
+  // Track when objects are moved (after drag ends)
+  useEffect(() => {
+    if (!drag.isDraggingObject && drag.draggedObjectIds.length > 0) {
+      drag.draggedObjectIds.forEach((id) => {
+        attentionTracking.trackObjectMoved(id);
+      });
+    }
+  }, [drag.isDraggingObject, drag.draggedObjectIds, attentionTracking]);
+
+  // Check for agent frame dissolution after objects change
+  useEffect(() => {
+    const checkDissolution = () => {
+      const dissolved = checkAndDissolveFrames(canvas.objects);
+      if (dissolved.length !== canvas.objects.length) {
+        canvas.setObjects(dissolved);
+      }
+    };
+
+    // Debounce to avoid checking too frequently
+    const timeout = setTimeout(checkDissolution, 500);
+    return () => clearTimeout(timeout);
+  }, [canvas.objects]);
+
   const artifactHandlers = createArtifactHandlers({
+    objects: canvas.objects,
     addObject: canvas.addObject,
     updateObject: canvas.updateObject,
     setObjects: canvas.setObjects,
@@ -197,6 +340,11 @@ export default function App() {
     deselectAll: selection.deselectAll,
     selectObject: selection.selectObject,
     setActiveToolbarId: toolbar.setActiveToolbarId,
+    attentionHead: attentionTracking.attentionHead,
+    workflowDirection: attentionTracking.workflowDirection,
+    trackObjectGenerated: attentionTracking.trackObjectGenerated,
+    selectedIds: selection.selectedIds,
+    cursorPosition: cursorTracker.cursorPosition,
   });
 
   const mouseHandlers = createMouseHandlers({
@@ -231,6 +379,7 @@ export default function App() {
     selectObject: selection.selectObject,
     setActiveToolbarId: toolbar.setActiveToolbarId,
     selectedIds: selection.selectedIds,
+    updateCursorPosition: cursorTracker.updateCursorPosition,
   });
 
   const canvasHandlers = createCanvasHandlers({
@@ -245,9 +394,11 @@ export default function App() {
     setActiveToolbarId: toolbar.setActiveToolbarId,
     setToolbarSystemActivated: toolbar.setToolbarSystemActivated,
     zoomLevel: canvas.zoomLevel,
+    panOffset: canvas.panOffset,
     setZoomLevel: canvas.setZoomLevel,
     setPanOffset: canvas.setPanOffset,
     canvasRef,
+    updateCursorPosition: cursorTracker.updateCursorPosition,
   });
 
   // ===== Additional Event Handlers =====
@@ -331,7 +482,7 @@ export default function App() {
   };
 
   const handleCanvasContextMenu = (e: React.MouseEvent) => {
-    canvasHandlers.handleCanvasContextMenu(e, contextMenuState.setContextMenu);
+    canvasHandlers.handleCanvasContextMenu(e, contextMenuState.openContextMenu);
   };
 
   const handleResizeStart = (corner: string, e: React.MouseEvent) => {
@@ -389,6 +540,160 @@ export default function App() {
     },
   });
 
+  const cloneCanvasObjects = <T,>(data: T): T => {
+    const structuredCloneFn = (globalThis as any).structuredClone;
+    if (typeof structuredCloneFn === "function") {
+      return structuredCloneFn(data);
+    }
+    return JSON.parse(JSON.stringify(data)) as T;
+  };
+
+  useEffect(() => {
+    if (canvasMode === "empty") {
+      canvas.setObjects(cloneCanvasObjects(INITIAL_OBJECTS_EMPTY));
+    } else {
+      canvas.setObjects(cloneCanvasObjects(INITIAL_OBJECTS));
+    }
+
+    selection.deselectAll();
+    toolbar.setActiveToolbarId(null);
+  }, [canvasMode]);
+
+  const getCursorPlacementOption = () => {
+    const position = cursorTracker.cursorPosition?.canvas;
+    const anchorObjectId = computeAnchorObjectId();
+
+    if (!position && !anchorObjectId) {
+      return undefined;
+    }
+
+    const options: Record<string, unknown> = {};
+    if (position) options.position = position;
+    if (anchorObjectId) options.anchorObjectId = anchorObjectId;
+    return options as any;
+  };
+
+  const addPlaceholderAtFocus = (type: ArtifactType) =>
+    artifactHandlers.handleAddPlaceholder(type, getCursorPlacementOption());
+
+  const addArtifactAtFocus = (type: ArtifactType) =>
+    artifactHandlers.handleAddArtifact(type, getCursorPlacementOption());
+
+  // ===== Off-Screen Frame Handlers =====
+  const handlePanToFrame = (frameId: string) => {
+    const frame = canvas.objects.find((obj) => obj.id === frameId);
+    if (!frame) return;
+
+    // Get actual dimensions
+    let width = frame.width;
+    let height = frame.height;
+    const element = document.querySelector(
+      `[data-object-id="${frameId}"]`
+    ) as HTMLElement;
+    if (element) {
+      const actualWidth = element.getAttribute("data-actual-width");
+      const actualHeight = element.getAttribute("data-actual-height");
+      if (actualWidth) width = parseFloat(actualWidth);
+      if (actualHeight) height = parseFloat(actualHeight);
+    }
+
+    // Calculate frame center in canvas coords
+    const frameCenterX = frame.x + width / 2;
+    const frameCenterY = frame.y + height / 2;
+
+    // Calculate viewport dimensions
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    // Pan so frame center is at viewport center
+    const newPanX = rect.width / 2 - frameCenterX * canvas.zoomLevel;
+    const newPanY = rect.height / 2 - frameCenterY * canvas.zoomLevel;
+
+    canvas.setPanOffset({ x: newPanX, y: newPanY });
+  };
+
+  const handleZoomToShowAll = (frameIds: string[]) => {
+    // Get ALL agent frames (not just the off-screen ones)
+    // This shows the full vertical stack/conversation
+    const allAgentFrames = canvas.objects.filter(
+      (obj) => obj.type === "frame" && (obj as any).createdBy === "agent"
+    );
+
+    if (allAgentFrames.length === 0) return;
+
+    const frames = allAgentFrames;
+
+    // Calculate bounding box of all frames
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    frames.forEach((frame) => {
+      let width = frame.width;
+      let height = frame.height;
+      const element = document.querySelector(
+        `[data-object-id="${frame.id}"]`
+      ) as HTMLElement;
+      if (element) {
+        const actualWidth = element.getAttribute("data-actual-width");
+        const actualHeight = element.getAttribute("data-actual-height");
+        if (actualWidth) width = parseFloat(actualWidth);
+        if (actualHeight) height = parseFloat(actualHeight);
+      }
+
+      minX = Math.min(minX, frame.x);
+      minY = Math.min(minY, frame.y);
+      maxX = Math.max(maxX, frame.x + width);
+      maxY = Math.max(maxY, frame.y + height);
+    });
+
+    const boundingWidth = maxX - minX;
+    const boundingHeight = maxY - minY;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    // Calculate zoom to fit with adaptive padding based on content
+    // More frames = more padding (to show context around the stack)
+    const basePadding = 150;
+    const paddingPerFrame = 20; // Add padding for each frame
+    const padding =
+      basePadding + Math.min(frames.length * paddingPerFrame, 300);
+
+    const zoomX = (rect.width - padding * 2) / boundingWidth;
+    const zoomY = (rect.height - padding * 2) / boundingHeight;
+
+    // Calculate ideal zoom based on content
+    let calculatedZoom = Math.min(zoomX, zoomY);
+
+    // Adaptive zoom limits based on number of frames
+    const maxZoom = 1.0; // Never zoom in
+    let minZoom = 0.3; // Default minimum
+
+    // For many frames, allow smaller zoom
+    if (frames.length > 5) {
+      minZoom = 0.25;
+    }
+    if (frames.length > 10) {
+      minZoom = 0.2;
+    }
+
+    const finalZoom = Math.max(Math.min(calculatedZoom, maxZoom), minZoom);
+
+    // Pan to center
+    const newPanX = rect.width / 2 - centerX * finalZoom;
+    const newPanY = rect.height / 2 - centerY * finalZoom;
+
+    canvas.setZoomLevel(finalZoom);
+    canvas.setPanOffset({ x: newPanX, y: newPanY });
+
+    // Dismiss all the frames we just showed
+    frameIds.forEach((id) => offScreenFrames.dismissIndicator(id));
+  };
+
   // ===== Render =====
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#DFDFDF]">
@@ -407,8 +712,8 @@ export default function App() {
       {/* Header Toolbar */}
       <HeaderToolbar
         onAddCanvasNative={artifactHandlers.handleAddCanvasNative}
-        onAddArtifact={artifactHandlers.handleAddArtifact}
-        onAddPlaceholder={artifactHandlers.handleAddPlaceholder}
+        onAddArtifact={addArtifactAtFocus}
+        onAddPlaceholder={addPlaceholderAtFocus}
         onAddFrame={artifactHandlers.handleAddEmptyFrame}
         onAddAgentFrame={artifactHandlers.handleAddAgentFrame}
         onOpenDocumentation={() => setShowDocumentation(true)}
@@ -448,6 +753,15 @@ export default function App() {
         onToggleShowPlayIconOnHover={() => {
           setShowPlayIconOnHover(!showPlayIconOnHover);
         }}
+        onSimulateAgentScenario={artifactHandlers.handleSimulateAgentScenario}
+        showAttentionScores={showAttentionScores}
+        onToggleAttentionScores={() =>
+          setShowAttentionScores(!showAttentionScores)
+        }
+        canvasMode={canvasMode}
+        onToggleCanvasMode={() =>
+          setCanvasMode(canvasMode === "empty" ? "showcase" : "empty")
+        }
       />
 
       {/* Canvas */}
@@ -550,15 +864,55 @@ export default function App() {
         />
       </div>
 
+      {/* Debug Attention Overlay */}
+      <DebugAttentionOverlay
+        objects={canvas.objects}
+        zoomLevel={canvas.zoomLevel}
+        panOffset={canvas.panOffset}
+        getAttentionScore={attentionTracking.getAttentionScore}
+        enabled={showAttentionScores}
+      />
+
+      {/* Off-Screen Notifications */}
+      <OffScreenNotifications
+        indicators={offScreenFrames.indicators}
+        objects={canvas.objects}
+        zoomLevel={canvas.zoomLevel}
+        panOffset={canvas.panOffset}
+        onPanToFrame={handlePanToFrame}
+        onZoomToShowAll={handleZoomToShowAll}
+      />
+
       {/* Context Menu */}
       <CanvasContextMenu
         isOpen={contextMenuState.contextMenu.isOpen}
         x={contextMenuState.contextMenu.x}
         y={contextMenuState.contextMenu.y}
         onClose={contextMenuState.closeContextMenu}
-        onNewImage={() => artifactHandlers.handleAddArtifact("image")}
-        onNewVideo={() => artifactHandlers.handleAddArtifact("video")}
-        onNewAudio={() => artifactHandlers.handleAddArtifact("audio")}
+        onNewImage={() =>
+          artifactHandlers.handleAddPlaceholder("image", {
+            position: contextMenuState.contextMenu.canvasPosition,
+            anchorObjectId: computeAnchorObjectId(
+              contextMenuState.contextMenu.canvasPosition
+            ),
+          })
+        }
+        onNewVideo={() =>
+          artifactHandlers.handleAddPlaceholder("video", {
+            position: contextMenuState.contextMenu.canvasPosition,
+            anchorObjectId: computeAnchorObjectId(
+              contextMenuState.contextMenu.canvasPosition
+            ),
+          })
+        }
+        onNewAudio={() =>
+          artifactHandlers.handleAddPlaceholder("audio", {
+            position: contextMenuState.contextMenu.canvasPosition,
+            anchorObjectId: computeAnchorObjectId(
+              contextMenuState.contextMenu.canvasPosition
+            ),
+          })
+        }
         onNewFrame={artifactHandlers.handleAddEmptyFrame}
         onUploadMedia={() => console.log("Upload Media - TODO")}
         onCursorChat={() => console.log("Cursor Chat - TODO")}

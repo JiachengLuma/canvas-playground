@@ -210,3 +210,43 @@ export type ColorTag = 'none' | 'green' | 'yellow' | 'red';
 // ============================================================================
 
 export type LabelBgColor = 'none' | 'red' | 'green' | 'yellow';
+
+// ============================================================================
+// LAYOUT ENGINE & ATTENTION TRACKING
+// ============================================================================
+
+export interface AttentionScore {
+  objectId: string;
+  lastMoved?: number;      // timestamp when object was last moved
+  lastViewed?: number;     // timestamp when object was last in viewport
+  lastGenerated?: number;  // timestamp when object was created/generated
+  score: number;           // calculated relevance score 0-100
+}
+
+export interface AttentionHead {
+  x: number;
+  y: number;
+  confidence: number; // 0-1, how confident we are about this position
+}
+
+export interface WorkFlowDirection {
+  x: number; // -1 to 1 (left to right)
+  y: number; // -1 to 1 (top to bottom)
+  confidence: number; // 0-1, how confident we are about this direction
+}
+
+export interface LayoutContext {
+  objectSize: { width: number; height: number };
+  objectType: ObjectType;
+  sourceObjectId?: string;  // for variants/show more
+  isAgentFrame?: boolean;
+  expectedChildren?: number; // for agent frames
+  nestingDepth?: number;     // for sub-frames (0 = top level)
+}
+
+export interface PlacementResult {
+  x: number;
+  y: number;
+  confidence: number; // 0-1, how good is this placement
+  reason: string;     // for debugging
+}

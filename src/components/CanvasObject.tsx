@@ -123,6 +123,7 @@ export function CanvasObject({
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
   const frameNameRef = useRef<HTMLDivElement | null>(null);
+  const objectRef = useRef<HTMLDivElement | null>(null);
 
   // Listen for Shift key to show proportional scale mode
   useEffect(() => {
@@ -146,6 +147,37 @@ export function CanvasObject({
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
+
+  // Track actual rendered dimensions for autolayout frames using data attributes
+  // This allows selection bounds to use actual DOM size instead of object.width/height
+  useEffect(() => {
+    const isAutolayoutFrame =
+      object.type === "frame" && (object as any).autoLayout;
+
+    if (!isAutolayoutFrame || !objectRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+
+        // Store actual dimensions on the DOM element as data attributes
+        // getSelectionBounds will read these when calculating bounds
+        if (objectRef.current) {
+          objectRef.current.setAttribute("data-actual-width", width.toString());
+          objectRef.current.setAttribute(
+            "data-actual-height",
+            height.toString()
+          );
+        }
+      }
+    });
+
+    resizeObserver.observe(objectRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [object]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
@@ -287,6 +319,17 @@ export function CanvasObject({
       }
     };
   }, []);
+
+  const objectSizeState = getUISizeState(
+    object.width,
+    object.height,
+    zoomLevel
+  );
+
+  const canShowGeneratingMetadata =
+    object.type === "audio"
+      ? objectSizeState !== "micro"
+      : shouldShowObjectMetadata(object.width, object.height, zoomLevel);
 
   const renderContent = () => {
     // Helper to render loading state for artifacts
@@ -670,17 +713,20 @@ export function CanvasObject({
                 ? {
                     display: "flex",
                     flexDirection: layout === "vstack" ? "column" : "row",
-                    flexWrap: layout === "grid" ? "wrap" : "nowrap",
+                    flexWrap: layout === "grid" ? "nowrap" : "nowrap",
                     padding: `${padding}px`,
                     gap: `${gap}px`,
                     alignItems: "flex-start",
-                    alignContent: "flex-start", // Pack wrapped rows tightly together
+                    alignContent: "flex-start",
                     position: "relative",
                     minWidth: minWidth ? `${minWidth}px` : undefined,
                     minHeight: minHeight ? `${minHeight}px` : undefined,
-                    width: `${object.width}px`,
-                    // For grid layout, height should fit content
-                    height: layout === "grid" ? "auto" : `${object.height}px`,
+                    // For grid layout, let width grow with content (fit-content), height auto
+                    // For other layouts, constrain to object.width/height
+                    width:
+                      layout === "grid" ? "fit-content" : `${object.width}px`,
+                    height:
+                      layout === "grid" ? "fit-content" : `${object.height}px`,
                   }
                 : {
                     // Non-autolayout: fill parent and inset for selection bounds
@@ -913,7 +959,9 @@ export function CanvasObject({
 
   return (
     <motion.div
+      ref={objectRef}
       data-canvas-object
+      data-object-id={object.id}
       style={{
         // Children of autolayout frames use relative positioning (flexbox handles layout)
         // All other objects use absolute positioning on canvas
@@ -926,12 +974,17 @@ export function CanvasObject({
         ...(isChildOfAutolayoutFrame && {
           flexShrink: 0,
         }),
-        // For autolayout frames: constrain width but let height grow with content
+        // For autolayout frames: let both width and height grow with content
         // For other objects: use fixed dimensions
-        ...(isAutolayoutFrame
+        // Special case: autolayout frames inside autolayout parents should also use fit-content
+        ...(isAutolayoutFrame ||
+        (isChildOfAutolayoutFrame &&
+          object.type === "frame" &&
+          (object as any).autoLayout)
           ? {
-              width: `${object.width}px`,
+              width: "fit-content",
               height: "fit-content",
+              minWidth: `${object.width}px`,
             }
           : {
               width: `${object.width}px`,
@@ -1444,7 +1497,7 @@ export function CanvasObject({
         object.type !== "frame" &&
         !object.parentId &&
         shouldShowMetadata(object.type) &&
-        shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
+        canShowGeneratingMetadata && (
           <div
             style={{
               position: "absolute",
@@ -1484,7 +1537,7 @@ export function CanvasObject({
         !object.parentId &&
         zoomLevel > 0.3 &&
         shouldShowMetadata(object.type) &&
-        shouldShowObjectMetadata(object.width, object.height, zoomLevel) && (
+        canShowGeneratingMetadata && (
           <div
             style={{
               position: "absolute",
@@ -1528,6 +1581,12 @@ export function CanvasObject({
             object.height,
             zoomLevel
           );
+
+          // Hide header for sub-frames inside ANY frames (agent or regular)
+          // Sub-frames are contained and shouldn't show their own headers
+          if (isAgentFrame && object.parentId) {
+            return null; // Don't show header for nested agent sub-frames
+          }
 
           // Show label always (except in micro state or when being dragged)
           // UNLESS it has a colored label, then only show when selected

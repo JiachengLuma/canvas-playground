@@ -10,6 +10,7 @@ import { duplicateObject } from "../utils/objectFactory";
 export interface DragState {
   // Object Drag
   isDraggingObject: boolean;
+  draggedObjectIds: string[]; // IDs of objects being dragged
   startObjectDrag: (
     id: string,
     selectedIds: string[],
@@ -42,6 +43,7 @@ export function useDrag(
   setObjects: React.Dispatch<React.SetStateAction<CanvasObject[]>>
 ): DragState {
   const [isDraggingObject, setIsDraggingObject] = useState(false);
+  const [draggedObjectIds, setDraggedObjectIds] = useState<string[]>([]);
   const [isDraggingHandle, setIsDraggingHandle] = useState(false);
   const [dragHandlePos, setDragHandlePos] = useState<{
     x: number;
@@ -71,6 +73,7 @@ export function useDrag(
     const objectsToDrag = currentSelectedIds.includes(id)
       ? currentSelectedIds
       : [id];
+    let attentionTargetIds = objectsToDrag;
 
     if (!currentSelectedIds.includes(id)) {
       setSelectedIdsCallback([id]);
@@ -91,6 +94,7 @@ export function useDrag(
       // Store the new IDs for selection after drag
       duplicatedIds.current = newObjects.map((obj) => obj.id);
       currentDragIds.current = duplicatedIds.current;
+      attentionTargetIds = duplicatedIds.current;
 
       // Add duplicates to canvas
       setObjectsCallback((prev) => [...prev, ...newObjects]);
@@ -101,9 +105,11 @@ export function useDrag(
       isDuplicatingDrag.current = false;
       duplicatedIds.current = [];
       currentDragIds.current = objectsToDrag;
+      attentionTargetIds = objectsToDrag;
     }
 
     setIsDraggingObject(true);
+    setDraggedObjectIds(attentionTargetIds);
   };
 
   const updateObjectDrag = (dx: number, dy: number) => {
@@ -203,6 +209,7 @@ export function useDrag(
     isDuplicatingDrag.current = false;
     duplicatedIds.current = [];
     currentDragIds.current = [];
+    // Keep draggedObjectIds set so they can be tracked after drag ends
   };
 
   const startHandleDrag = (x: number, y: number) => {
@@ -441,6 +448,7 @@ export function useDrag(
 
   return {
     isDraggingObject,
+    draggedObjectIds,
     startObjectDrag,
     updateObjectDrag,
     endObjectDrag,

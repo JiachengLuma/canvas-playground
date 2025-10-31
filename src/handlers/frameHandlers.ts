@@ -5,6 +5,7 @@
 
 import { CanvasObject } from "../types";
 import { createFrame } from "../utils/objectFactory";
+import { checkAndDissolveFrames } from "../utils/agentFrameManager";
 
 export interface FrameHandlersParams {
   objects: CanvasObject[];
@@ -15,6 +16,17 @@ export interface FrameHandlersParams {
   setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
   setActiveToolbarId: (id: string | null) => void;
   setToolbarSystemActivated: (activated: boolean) => void;
+}
+
+/**
+ * Utility to check and dissolve agent frames with only one child
+ * Call this after any operation that might leave a frame with a single child
+ */
+export function applyFrameDissolution(
+  objects: CanvasObject[],
+  setObjects: React.Dispatch<React.SetStateAction<CanvasObject[]>>
+) {
+  setObjects((prev) => checkAndDissolveFrames(prev));
 }
 
 export const createFrameHandlers = (params: FrameHandlersParams) => {

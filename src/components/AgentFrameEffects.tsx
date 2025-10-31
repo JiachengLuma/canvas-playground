@@ -42,6 +42,7 @@ export function AgentFrameHeader({
   const orbSize = 8 / zoomLevel;
   const paddingX = 6 / zoomLevel;
   const gap = 4 / zoomLevel;
+  const headerGap = 4 / zoomLevel; // Gap between header and frame border
   const frameNameRef = useRef<HTMLDivElement | null>(null);
 
   // Helper to get label background color
@@ -74,7 +75,7 @@ export function AgentFrameHeader({
     <motion.div
       className="absolute flex items-center cursor-move overflow-hidden"
       style={{
-        top: -headerHeight - 2 / zoomLevel, // Add 2px gap between label and frame
+        top: -headerHeight - headerGap, // Header height + gap above frame border
         left: bgColor !== "transparent" ? 0 : 4 / zoomLevel,
         height: headerHeight,
         backgroundColor: bgColor,

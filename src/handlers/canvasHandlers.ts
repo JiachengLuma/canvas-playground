@@ -4,6 +4,7 @@
  */
 
 import { CanvasObject } from "../types";
+import { screenToCanvas } from "../utils/canvasUtils";
 
 export interface CanvasHandlersParams {
   objects: CanvasObject[];
@@ -20,9 +21,14 @@ export interface CanvasHandlersParams {
   setToolbarSystemActivated: (activated: boolean) => void;
   // Zoom methods
   zoomLevel: number;
+  panOffset: { x: number; y: number };
   setZoomLevel: (level: number) => void;
   setPanOffset: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
   canvasRef: React.RefObject<HTMLDivElement | null>;
+  updateCursorPosition?: (pos: {
+    screen: { x: number; y: number };
+    canvas: { x: number; y: number };
+  }) => void;
 }
 
 export const createCanvasHandlers = (params: CanvasHandlersParams) => {
@@ -38,9 +44,11 @@ export const createCanvasHandlers = (params: CanvasHandlersParams) => {
     setActiveToolbarId,
     setToolbarSystemActivated,
     zoomLevel,
+    panOffset,
     setZoomLevel,
     setPanOffset,
     canvasRef,
+    updateCursorPosition,
   } = params;
 
   const handleSelect = (id: string, multi: boolean) => {
@@ -72,9 +80,11 @@ export const createCanvasHandlers = (params: CanvasHandlersParams) => {
 
   const handleCanvasContextMenu = (
     e: React.MouseEvent,
-    setContextMenu: React.Dispatch<
-      React.SetStateAction<{ isOpen: boolean; x: number; y: number }>
-    >
+    openContextMenu: (
+      x: number,
+      y: number,
+      canvasPosition: { x: number; y: number }
+    ) => void
   ) => {
     e.preventDefault();
     e.stopPropagation();
@@ -85,10 +95,17 @@ export const createCanvasHandlers = (params: CanvasHandlersParams) => {
       return;
     }
 
-    setContextMenu({
-      isOpen: true,
-      x: e.clientX,
-      y: e.clientY,
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const localX = rect ? e.clientX - rect.left : e.clientX;
+    const localY = rect ? e.clientY - rect.top : e.clientY;
+
+    const canvasPosition = screenToCanvas(localX, localY, zoomLevel, panOffset);
+
+    openContextMenu(e.clientX, e.clientY, canvasPosition);
+
+    updateCursorPosition?.({
+      screen: { x: e.clientX, y: e.clientY },
+      canvas: canvasPosition,
     });
   };
 

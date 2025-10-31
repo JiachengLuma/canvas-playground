@@ -33,6 +33,12 @@ interface HeaderToolbarProps {
   onToggleVideoControlsLayout?: () => void;
   showPlayIconOnHover?: boolean;
   onToggleShowPlayIconOnHover?: () => void;
+  // Layout Engine & Debug
+  onSimulateAgentScenario?: () => void;
+  showAttentionScores?: boolean;
+  onToggleAttentionScores?: () => void;
+  canvasMode?: "empty" | "showcase";
+  onToggleCanvasMode?: () => void;
 }
 
 export function HeaderToolbar({
@@ -54,6 +60,11 @@ export function HeaderToolbar({
   onToggleVideoControlsLayout,
   showPlayIconOnHover = true,
   onToggleShowPlayIconOnHover,
+  onSimulateAgentScenario,
+  showAttentionScores = false,
+  onToggleAttentionScores,
+  canvasMode = "showcase",
+  onToggleCanvasMode,
 }: HeaderToolbarProps) {
   return (
     <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm border-b">
@@ -297,8 +308,76 @@ export function HeaderToolbar({
                   </div>
                 </DropdownMenuItem>
               )}
+
+              {/* Divider */}
+              {(onToggleAttentionScores || onToggleCanvasMode) && (
+                <div className="h-px bg-gray-200 my-1" />
+              )}
+
+              {/* Debug: Show Attention Scores */}
+              {onToggleAttentionScores && (
+                <DropdownMenuItem onClick={onToggleAttentionScores}>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-medium">Show Attention Scores</span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded ${
+                          showAttentionScores
+                            ? "bg-red-100 text-red-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {showAttentionScores ? "ON" : "OFF"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Show red number overlays with attention scores for layout
+                      engine debugging
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              )}
+
+              {/* Debug: Canvas Mode */}
+              {onToggleCanvasMode && (
+                <DropdownMenuItem onClick={onToggleCanvasMode}>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-medium">Canvas Mode</span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded ${
+                          canvasMode === "empty"
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
+                        {canvasMode === "empty"
+                          ? "Empty (t=0)"
+                          : "Showcase (t=n)"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Empty: Start from scratch. Showcase: Full demo with all
+                      artifacts
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
+        )}
+
+        {/* Simulate Agent Scenario Button */}
+        {onSimulateAgentScenario && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={onSimulateAgentScenario}
+          >
+            <Play className="h-4 w-4" />
+            Simulate Agent
+          </Button>
         )}
 
         {/* Documentation Button */}

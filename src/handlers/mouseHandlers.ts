@@ -54,6 +54,10 @@ export interface MouseHandlersParams {
   selectObject: (id: string, multi: boolean) => void;
   setActiveToolbarId: (id: string | null) => void;
   selectedIds: string[];
+  updateCursorPosition?: (pos: {
+    screen: { x: number; y: number };
+    canvas: { x: number; y: number };
+  }) => void;
 }
 
 export const createMouseHandlers = (params: MouseHandlersParams) => {
@@ -89,7 +93,24 @@ export const createMouseHandlers = (params: MouseHandlersParams) => {
     selectObject,
     setActiveToolbarId,
     selectedIds,
+    updateCursorPosition,
   } = params;
+
+  const updateCursor = (clientX: number, clientY: number) => {
+    if (!updateCursorPosition) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const canvasCoords = screenToCanvas(
+      clientX - rect.left,
+      clientY - rect.top,
+      zoomLevel,
+      panOffset
+    );
+    updateCursorPosition({
+      screen: { x: clientX, y: clientY },
+      canvas: canvasCoords,
+    });
+  };
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
@@ -119,6 +140,8 @@ export const createMouseHandlers = (params: MouseHandlersParams) => {
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    updateCursor(e.clientX, e.clientY);
+
     if (isPanning) {
       updatePan(e.clientX, e.clientY, setPanOffset);
     } else if (isResizing) {

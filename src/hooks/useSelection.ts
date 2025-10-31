@@ -3,7 +3,7 @@
  * Manages object selection (single, multi, box selection)
  */
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { CanvasObject } from "../types";
 import { getSelectionBounds, getObjectsInBox, Bounds } from "../utils/canvasUtils";
 
@@ -39,7 +39,31 @@ export function useSelection(objects: CanvasObject[]): SelectionState {
   const hasMovedMouse = useRef(false);
 
   const isMultiSelect = selectedIds.length > 1;
-  const selectionBounds = getSelectionBounds(objects, selectedIds);
+  const [selectionBounds, setSelectionBounds] = useState<Bounds>({ minX: 0, minY: 0, maxX: 0, maxY: 0 });
+  
+  // Update selection bounds whenever objects or selectedIds change
+  // Also poll for autolayout frames to handle dynamic size changes
+  useEffect(() => {
+    const updateBounds = () => {
+      const newBounds = getSelectionBounds(objects, selectedIds);
+      setSelectionBounds(newBounds);
+    };
+    
+    // Update immediately
+    updateBounds();
+    
+    // Check if any selected object is an autolayout frame
+    const hasAutolayoutFrame = selectedIds.some(id => {
+      const obj = objects.find(o => o.id === id);
+      return obj && obj.type === 'frame' && (obj as any).autoLayout;
+    });
+    
+    // If autolayout frame is selected, poll for dimension changes
+    if (hasAutolayoutFrame) {
+      const interval = setInterval(updateBounds, 100); // Poll every 100ms
+      return () => clearInterval(interval);
+    }
+  }, [objects, selectedIds]);
 
   const selectObject = (id: string, multi: boolean) => {
     if (multi) {

@@ -38,10 +38,26 @@ export function getSelectionBounds(
   let maxY = -Infinity;
 
   selectedObjects.forEach((obj) => {
+    let width = obj.width;
+    let height = obj.height;
+    
+    // For autolayout frames, read actual rendered dimensions from DOM
+    const isAutolayoutFrame = obj.type === 'frame' && (obj as any).autoLayout;
+    if (isAutolayoutFrame) {
+      const element = document.querySelector(`[data-object-id="${obj.id}"]`) as HTMLElement;
+      if (element) {
+        // Data attributes are set by ResizeObserver with contentRect (unaffected by zoom)
+        const actualWidth = element.getAttribute('data-actual-width');
+        const actualHeight = element.getAttribute('data-actual-height');
+        if (actualWidth) width = parseFloat(actualWidth);
+        if (actualHeight) height = parseFloat(actualHeight);
+      }
+    }
+    
     minX = Math.min(minX, obj.x);
     minY = Math.min(minY, obj.y);
-    maxX = Math.max(maxX, obj.x + obj.width);
-    maxY = Math.max(maxY, obj.y + obj.height);
+    maxX = Math.max(maxX, obj.x + width);
+    maxY = Math.max(maxY, obj.y + height);
   });
 
   return { minX, minY, maxX, maxY };
